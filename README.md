@@ -231,9 +231,17 @@ Both a rejection and a technical failure interrupt the current execution and cau
 
 A `policy` declares a business decision based on the current state.
 
-It receives the result of one or more queries and returns `true` when the condition is satisfied or a declared error when the action must be rejected.
+A policy may declare its own input schema. It receives only the validated input required for its decision and the named results of one or more declared queries.
+
+Each policy declares exactly one error that represents its possible rejection. It returns `true` when its condition is satisfied or a runtime proposal for that error when the action must be rejected. Two distinct rejections require two distinct policies.
 
 A policy does not validate the structure of data, change state, or execute the action.
+
+A policy does not know or invoke other policies. Its only relationships are the input, queries, and error explicitly supplied to its own composition.
+
+The procedure binds validated command fields to the input of each policy. Each policy binds fields from its validated input to the inputs of its queries. These bindings may select or rename fields, but they must not contain business decisions or business calculations. The concrete API used to represent a binding remains open.
+
+A policy may omit its input schema when it has no input of its own. It may still decide from a declared query result, including the result of a query that also has no input.
 
 Policies are evaluated when the system attempts to register new events. At that point, their queries observe the current state protected by SQLite's single-writer model.
 
@@ -253,7 +261,9 @@ Different projections may exist for different read requirements even when they c
 
 A `query` defines a read offered by the application.
 
-It may use one or more projections and declares its own schema and result type. There is no required one-to-one correspondence between a query and a projection.
+It may use one or more projections and independently declares its input schema and result schema. There is no required one-to-one correspondence between a query and a projection.
+
+A query may omit its input schema when no parameters are required. Its input is validated before execution, and its result is validated before being supplied to another primitive.
 
 Its definition may contain details such as SQL, but those details are not part of using the query. Its consumers depend only on its declared inputs and result.
 
