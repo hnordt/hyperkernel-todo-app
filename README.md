@@ -236,6 +236,7 @@ Each resolver:
 - Receives the data of the command registered by the procedure.
 - May declare a dependency on one or more queries.
 - Receives the results of those queries.
+- May perform pure calculations required to construct the payload of its declared event.
 - Returns exactly one event.
 - Returns only the event description, without changing state or producing effects.
 
@@ -248,6 +249,27 @@ If every policy accepts the action, every resolver is executed and each one prod
 ## Future capabilities
 
 The capabilities in this section have been identified but are not part of the first implementation. Their contracts remain open until a concrete use case requires each one.
+
+### Derive
+
+A `derive` is a candidate future primitive for a named, pure business calculation with explicit input and output schemas.
+
+Business calculations have two different temporal roles:
+
+- A value that was part of what happened must be calculated before the event is registered and persisted in the event payload.
+- A value that represents a current interpretation of history may be calculated by a projection and rebuilt from the event log.
+
+Until a separate primitive is justified, a resolver may perform pure calculations required to construct its event payload, and a projection may calculate state intended only for reading.
+
+The `derive` primitive should be introduced only when a concrete calculation:
+
+- Has a recognizable name in the domain.
+- Is reused by more than one resolver or projection.
+- Needs an explicit input and output contract.
+- Deserves independent tests or inspection.
+- Or needs to be used both before an event is registered and while a projection is rebuilt.
+
+A derive would calculate and return a validated value. It would not accept or reject an action, return an error, produce an event, execute a query, or access infrastructure. A calculation that can reject an action belongs to a policy instead.
 
 ### Workflow
 
