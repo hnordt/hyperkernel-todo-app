@@ -276,8 +276,10 @@ Each procedure:
 - Registers exactly one command.
 - Has exclusive responsibility for that command.
 - Prevents another procedure from registering the same command.
-- Receives one or more policies.
+- Receives zero or more policies.
 - Receives one or more resolvers.
+
+The absence of policies means that the feature requires no business decision based on current state. Structural validation of the command remains mandatory.
 
 The complete execution of a procedure forms a single atomic operation within a transaction. Policy evaluation, required queries, resolver execution, event registration, and projection updates belong to the same unit of work.
 
@@ -294,15 +296,18 @@ Each resolver:
 - Receives the data of the command registered by the procedure.
 - May declare a dependency on one or more queries.
 - Receives the results of those queries.
+- Declares exactly one event descriptor that it is permitted to produce.
 - May perform pure calculations required to construct the payload of its declared event.
-- Returns exactly one event.
-- Returns only the event description, without changing state or producing effects.
+- Returns exactly one runtime proposal for that event.
+- Returns only the event proposal, without changing state or producing effects.
 
 A procedure may have more than one resolver. The system processes resolvers in the order in which they were declared and creates their events in the same order.
 
 This order guarantees a deterministic registration sequence, but it does not represent a causal dependency between events. The application must not use a resolver's position to express that its event depends on another.
 
-If every policy accepts the action, every resolver is executed and each one produces exactly one event. An accepted procedure has no partial execution, optional resolver, or eventless result.
+Policies authorize an attempt to execute the procedure. A later technical failure may interrupt resolver execution and causes the entire transaction to roll back.
+
+A procedure is accepted only after every resolver has produced and validated exactly one event proposal, every event and projection update has succeeded, and the transaction has committed. A committed procedure has no partial result, optional resolver, or eventless result.
 
 ## Future capabilities
 
