@@ -687,18 +687,7 @@ No need for another primitive has been identified. The outstanding matters are d
 
 These questions must be answered before the contracts of the first implementation can be considered complete.
 
-### 1. Origin of the task identifier
-
-The person provides only the text, but the creation event needs to contain a complete and stable identifier.
-
-It is necessary to decide:
-
-- Whether the layer that creates the command generates the identifier and includes it in the input.
-- Or whether Hyperkernel will provide an explicit capability for generating that identifier.
-
-It must also be defined how the uniqueness guarantee will be expressed and verified.
-
-### 2. Projection update contract
+### 1. Projection update contract
 
 A projection processes events to determine its state, but its contract still needs to declare:
 
@@ -709,17 +698,42 @@ A projection processes events to determine its state, but its contract still nee
 
 This outstanding matter should complete the `projection` primitive without creating a new primitive.
 
-### 3. Query input contract
+### 2. Query execution and authorization contract
 
-A query already declares its result, but it still needs to clearly declare:
+A query now has independent input and result schemas, but its execution contract still needs to define:
 
-- The structure of its input.
-- The projections on which it depends.
-- The reads it is authorized to perform.
+- How dependencies on projections are represented in the public API.
+- How authorized reads are declared and enforced.
+- How the read-only boundary is enforced for SQL.
+- How command-to-policy and policy-to-query bindings are represented concretely.
 
-This contract will be required to retrieve a task by identifier, verify its existence, and obtain its current position.
+The semantic data flow is defined, but the choice between callbacks and a declarative binding representation remains open.
 
-### 4. Behavior of invalid transitions
+### 3. Context public API
+
+The context semantics and transactional materialization phases are defined, but the public API still needs to determine:
+
+- How context capabilities are registered and provided to the kernel.
+- How primitives receive the parts of context available to them.
+- How materialization policies other than the transactional clock are represented.
+
+### 4. Descriptor representation
+
+Primitive descriptor identity, runtime proposal opacity, and provenance validation are required. The concrete implementation remains open, including whether it uses object identity, private metadata, or another mechanism.
+
+### 5. SQLite execution topology
+
+The first implementation still needs to decide:
+
+- Whether the kernel owns exactly one long-lived SQLite connection.
+- Which transaction mode acquires the writer before state-dependent reads.
+- How query results and read snapshots are bounded during a procedure execution.
+
+### 6. Command execution result
+
+The public contract still needs to represent the observable difference between structurally invalid input, a declared business rejection, a committed procedure, and an unexpected technical failure.
+
+### 7. Behavior of invalid transitions
 
 It is necessary to decide what happens when a person attempts to:
 
@@ -731,4 +745,4 @@ Each situation may be accepted without a change, rejected by a policy with a dec
 
 ## Next step
 
-Answer the open questions one at a time, beginning with the origin of the task identifier. After that, analyze the first stage using the incremental evaluation method and begin implementing the contracts required to add a task.
+Continue resolving the open questions one at a time without choosing API shapes or runtime mechanisms before their requirements are discussed. Implement the use-case stages incrementally as the contracts required by each stage are completed.
