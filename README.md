@@ -175,6 +175,10 @@ An `error` declares an expected failure known to the system.
 
 Each failure has an explicit contract identifying why an action could not be performed.
 
+A declared error represents an expected business rejection. An unexpected exception represents a technical failure in the application or Hyperkernel and is not part of the business contract.
+
+Both a rejection and a technical failure interrupt the current execution and cause the transaction to roll back. Capturing and sending technical failures to an error reporter belongs to a future capability.
+
 ### Policy
 
 A `policy` declares a business decision based on the current state.
@@ -184,6 +188,10 @@ It receives the result of one or more queries and returns `true` when the condit
 A policy does not validate the structure of data, change state, or execute the action.
 
 Policies are evaluated when the system attempts to register new events. At that point, their queries observe the current state protected by SQLite's single-writer model.
+
+When a procedure declares more than one policy, they are evaluated in declaration order. Evaluation stops at the first error, avoiding the execution of unnecessary policies and queries.
+
+If a policy rejects the action, none of the procedure's resolvers are executed and no event is registered.
 
 ### Projection
 
@@ -213,6 +221,12 @@ Each procedure:
 - Receives one or more policies.
 - Receives one or more resolvers.
 
+The complete execution of a procedure forms a single atomic operation within a transaction. Policy evaluation, required queries, resolver execution, event registration, and projection updates belong to the same unit of work.
+
+Policies and resolvers observe a single consistent state protected by SQLite's exclusive write access. No other write may be interleaved during this execution.
+
+If any part fails, the transaction is rolled back and none of the events or state produced by the procedure is preserved.
+
 #### Resolver
 
 A resolver is not an independent primitive. It is a function declared as part of a procedure.
@@ -228,6 +242,8 @@ Each resolver:
 A procedure may have more than one resolver. The system processes resolvers in the order in which they were declared and creates their events in the same order.
 
 This order guarantees a deterministic registration sequence, but it does not represent a causal dependency between events. The application must not use a resolver's position to express that its event depends on another.
+
+If every policy accepts the action, every resolver is executed and each one produces exactly one event. An accepted procedure has no partial execution, optional resolver, or eventless result.
 
 ## Future capabilities
 
@@ -252,6 +268,18 @@ It may:
 - Return an event when the work is performed or a declared error when it cannot be completed.
 
 The API, execution timing, and delivery, repetition, and recovery guarantees have not yet been defined. The task application has no external effects.
+
+### Durability of rejected commands
+
+In the future, the system may keep a durable record of received commands, including those that were rejected or interrupted by a failure.
+
+This capability is not part of the current event log and is not required for the first implementation.
+
+### Technical failure reporting
+
+In the future, unexpected exceptions may be captured and sent to an error reporter.
+
+The reporting mechanism, its configuration, and its delivery guarantees remain out of scope. In the first implementation, the required guarantee is that a technical failure rolls back the transaction and is not represented as a business error.
 
 ## Technical constraints of the first implementation
 
@@ -328,6 +356,19 @@ The entire flow of the first implementation is synchronous.
 - No primitive returns a `Promise`, schedules work, or keeps an operation pending for later completion.
 - A procedure finishes only after all the work it orchestrates has finished.
 
+### Composition validation
+
+Hyperkernel validates the composition of contracts eagerly, during assembly or initialization and before any command is processed.
+
+This validation happens at runtime and rejects, at a minimum:
+
+- Duplicate primitive names.
+- References to primitives that have not been registered.
+- More than one procedure registered for the same command.
+- Other structural combinations that violate the boundaries declared by the primitives.
+
+An invalid composition prevents the kernel from initializing instead of failing only when the corresponding feature is used.
+
 ### Strong consistency
 
 The state used for decisions and the state presented by projections follow a strong-consistency model.
@@ -335,7 +376,8 @@ The state used for decisions and the state presented by projections follow a str
 - Policies are evaluated when the system attempts to register new events.
 - The queries provided to policies read the latest state available at that moment.
 - No other write can be interleaved between the decision and the registration of events.
-- Events and projection updates are completed within the same synchronous flow.
+- Policies, resolvers, event registration, and projection updates execute within the same transaction.
+- If any part fails, the transaction is rolled back and no event or partial update is preserved.
 - After the operation finishes, queries already reflect the state produced by the registered events.
 
 The architecture does not allow an interval in which an event has been accepted but reads still present the previous state. Eventual consistency is outside the current model.
