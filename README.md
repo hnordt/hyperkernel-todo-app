@@ -705,7 +705,7 @@ A query now has independent input and result schemas, but its execution contract
 - How dependencies on projections are represented in the public API.
 - How authorized reads are declared and enforced.
 - How the read-only boundary is enforced for SQL.
-- How command-to-policy and policy-to-query bindings are represented concretely.
+- Whether bindings use callbacks or a declarative representation.
 
 The semantic data flow is defined, but the choice between callbacks and a declarative binding representation remains open.
 
@@ -719,7 +719,10 @@ The context semantics and transactional materialization phases are defined, but 
 
 ### 4. Descriptor representation
 
-Primitive descriptor identity, runtime proposal opacity, and provenance validation are required. The concrete implementation remains open, including whether it uses object identity, private metadata, or another mechanism.
+Primitive descriptor identity, runtime proposal opacity, and provenance validation are required. The concrete implementation still needs to determine:
+
+- Whether descriptor provenance uses object identity, private metadata, a `WeakMap`, or another mechanism.
+- How descriptors appear in the public API without exposing their internal representation.
 
 ### 5. SQLite execution topology
 
@@ -731,7 +734,12 @@ The first implementation still needs to decide:
 
 ### 6. Command execution result
 
-The public contract still needs to represent the observable difference between structurally invalid input, a declared business rejection, a committed procedure, and an unexpected technical failure.
+The public contract still needs to determine:
+
+- How structurally invalid input is represented.
+- How a declared business rejection is represented.
+- What a committed procedure returns.
+- How an unexpected technical failure is exposed.
 
 ### 7. Behavior of invalid transitions
 
