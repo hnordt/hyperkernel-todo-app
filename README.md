@@ -309,6 +309,39 @@ Policies authorize an attempt to execute the procedure. A later technical failur
 
 A procedure is accepted only after every resolver has produced and validated exactly one event proposal, every event and projection update has succeeded, and the transaction has committed. A committed procedure has no partial result, optional resolver, or eventless result.
 
+## Execution context
+
+The application explicitly supplies a `context` to the kernel. Primitives may receive the limited parts of that context required to construct their descriptions. For example, a query may receive a clock capability while constructing its SQL description. Context does not expose the SQLite connection, the kernel instance, or general infrastructure.
+
+A context capability returns a limited runtime description recognized by the kernel rather than performing the operation immediately. For example, `context.now()` describes the need for a time value instead of returning the concrete time at declaration.
+
+A primitive does not need a separate duplicate list of context capabilities. The context references contained in its runtime proposals record the capabilities it used. The kernel accepts only references created by context capabilities registered with that execution.
+
+### Materialization
+
+Each context reference is resolved exactly once during a procedure execution and is replaced with its concrete value before that value is consumed. Materialization occurs in stages inside the procedure transaction:
+
+1. Validate the command input.
+2. Begin the transaction and establish the consistent state for the procedure.
+3. Build and validate policy inputs.
+4. Materialize context required by policy queries and decisions.
+5. Execute policies in declaration order, stopping at the first rejection.
+6. Materialize context required by resolver queries and execute those queries against the same consistent state.
+7. Execute the resolvers and collect their event proposals.
+8. Materialize context references contained in those event proposals.
+9. Validate every concrete event payload.
+10. Append the events, update the projections, and commit the transaction.
+
+Context required only by resolvers or events is not materialized when a policy rejects the procedure.
+
+Runtime context references never reach the event log. Projections receive only materialized, validated events and do not access context. If the transaction fails, all values generated for that execution are discarded with the rest of the operation.
+
+### Transactional clock
+
+Every `context.now()` reference created during the same procedure execution resolves to the same transactional time, including references used by policies, queries, and multiple event proposals. The execution resolves the clock once and reuses that value for every clock reference in the transaction.
+
+The context provides the explicit architectural path for environmental values, but it does not prevent arbitrary JavaScript from directly using ambient APIs such as `Date.now()`. Following the context path remains an architectural rule reinforced by tooling and review.
+
 ## Future capabilities
 
 The capabilities in this section have been identified but are not part of the first implementation. Their contracts remain open until a concrete use case requires each one.
