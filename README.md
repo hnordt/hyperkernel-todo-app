@@ -159,6 +159,46 @@ The architecture seeks to reduce the number of implicit paths through which a fe
 
 The goal is for artificial intelligence to have few valid paths for generating a feature and for the contracts to reveal the possible behavior before a person needs to follow the internal execution code.
 
+### Explicit primitive relationships
+
+A primitive does not know the implementation, consumers, or undeclared dependencies of another primitive. Every relationship between primitives exists only through contracts explicitly provided during composition.
+
+A primitive may use only the primitive descriptors, query results, inputs, and context capabilities explicitly supplied to it. It does not discover dependencies through a global registry during execution. A primitive may know the contracts it receives, but it does not know their internal implementations or the consumers that use its own contract.
+
+## Contract terminology and provenance
+
+### Primitive descriptor
+
+A primitive descriptor is a static contract definition registered with a kernel. It declares the identity, schemas, dependencies, and limits of a primitive.
+
+### Runtime proposal
+
+A runtime proposal is an opaque, immutable value produced during execution through the official constructor of a primitive descriptor. It carries verifiable provenance to the primitive descriptor that created it and may contain unresolved context references.
+
+The internal representation of provenance is not part of the public contract. The implementation may use private metadata, object identity, or another non-public mechanism, as long as provenance remains verifiable through the supported API.
+
+### Materialized and committed values
+
+A materialized value is a runtime proposal whose context references have been replaced with concrete values and whose final schema has been validated. A committed value is a materialized value that the kernel has successfully accepted and persisted.
+
+The lifecycle is:
+
+```text
+primitive descriptor
+  → runtime proposal
+  → materialized value
+  → committed value
+```
+
+Before accepting a runtime proposal, the kernel verifies that:
+
+- Its primitive descriptor has been registered with that kernel.
+- The descriptor was explicitly supplied to the relevant composition.
+- The proposal is permitted in that position, such as an event declared by a resolver or an error declared by a policy.
+- Its provenance and payload have not been replaced by a merely structurally similar object.
+
+A primitive descriptor may be registered with more than one kernel. A kernel accepts only proposals whose originating descriptor is registered and authorized by its own composition.
+
 ## Current primitives
 
 All current primitives have synchronous contracts. Defining or combining them does not produce side effects by itself.
