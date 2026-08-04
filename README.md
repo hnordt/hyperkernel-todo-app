@@ -583,6 +583,21 @@ A person can:
 - An action on a nonexistent task fails and does not change another task.
 - Tasks do not need to remain available after the application terminates.
 
+#### Task identifier
+
+The client generates a UUID before requesting that a task be added. The person provides the task text, while the client constructs the complete command input:
+
+```text
+AddTask {
+  id: UUID,
+  text: string
+}
+```
+
+The command schema validates the UUID format. A policy verifies that the identifier is not already in use and declares `TaskAlreadyExists` as its only possible rejection. A uniqueness constraint in SQLite remains the final technical safeguard.
+
+Submitting an existing UUID is an explicit rejection in the first implementation. Idempotency, command deduplication, and reprocessing of the same command will be decided when durable command recording is introduced.
+
 ## Use-case stages
 
 Each stage delivers a new, concrete use and serves as a unit for evaluating the architecture.
@@ -593,7 +608,7 @@ Each stage delivers a new, concrete use and serves as a unit for evaluating the 
 
 **Introduced guarantees:**
 
-- The task receives a unique identifier.
+- The task uses the UUID supplied by the client as its unique identifier.
 - The text must be filled in.
 - The new task is added to the end of the list.
 
