@@ -361,6 +361,23 @@ The back end, primitives, SQLite access, checks, and executable examples must wo
 
 Implementation decisions should prefer capabilities available in the runtime itself and avoid introducing tools or dependencies that are not required to validate the architecture.
 
+### Independent schemas and runtime validation
+
+Each primitive owns its schemas independently of every other primitive. A command input schema, policy input schema, query input schema, query result schema, event payload schema, and error payload schema are separate contracts even when they contain fields with the same names or types.
+
+Values are validated whenever they cross a contract boundary:
+
+- A command validates its input before a procedure is executed.
+- The output of a command-to-policy binding is validated by the policy input schema.
+- The output of a policy-to-query binding is validated by the query input schema.
+- A query result is validated before it is supplied to a policy or resolver.
+- A runtime proposal is checked for provenance and permitted descriptors.
+- An event payload is validated against its final schema after all context references have been materialized and before the event is appended.
+
+Zod schemas may use capabilities such as `transform` and `refine` for structural normalization, canonical representation, and invariants belonging to the value being validated. A binding must not use normalization as a place to hide a business decision or business calculation.
+
+When an input schema is omitted, the primitive accepts no input. Omission does not mean an unknown or unrestricted input.
+
 ### Back-end scope
 
 The first phase addresses only the back end.
