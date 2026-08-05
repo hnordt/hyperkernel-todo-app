@@ -726,11 +726,15 @@ Primitive descriptor identity, runtime proposal opacity, and provenance validati
 
 ### 5. SQLite execution topology
 
-The first implementation still needs to decide:
+The kernel owns exactly one long-lived SQLite connection.
 
-- Whether the kernel owns exactly one long-lived SQLite connection.
-- Which transaction mode acquires the writer before state-dependent reads.
-- How query results and read snapshots are bounded during a procedure execution.
+Every procedure starts with `BEGIN IMMEDIATE` before executing any state-dependent query. This establishes the procedure as a write transaction before policies and resolvers inspect the current state. The procedure therefore does not begin as a reader and later attempt to acquire the writer after its decisions have already been made.
+
+All policy and resolver queries execute synchronously through the same connection and transaction. They observe the committed state that existed before the procedure started. Procedure queries finish before events are appended and projections are updated, so they do not observe state produced by the current procedure.
+
+Each query result is fully materialized and validated before it is supplied to a policy or resolver. Statements, cursors, lazy iterators, and references to the SQLite connection do not cross the query execution boundary or remain available after the query finishes.
+
+A successful commit makes the resulting projection state visible to subsequent queries. A rollback preserves the state that existed before the procedure started.
 
 ### 6. Command execution result
 
