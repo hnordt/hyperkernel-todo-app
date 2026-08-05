@@ -137,7 +137,7 @@ Hyperkernel provides the explicit architectural path that application code and c
 
 Hyperkernel is not a sandbox or a separate domain-specific language. A JavaScript function may still access ambient APIs, imported modules, or captured mutable state. Avoiding those paths remains the responsibility of the architect, the instructions given to artificial intelligence, supporting tools, and human review.
 
-Handlers receive only their declared inputs, query results, primitive contracts, and limited context capabilities. They do not receive the SQLite connection, the kernel instance, or general infrastructure access. Deno permissions should also be reduced to the capabilities required by the application.
+Handlers receive only their declared inputs, query results, primitive contracts, and limited runtime capabilities. They do not receive the SQLite connection, the kernel instance, or general infrastructure access. Deno permissions should also be reduced to the capabilities required by the application.
 
 ### Explicit composition
 
@@ -163,7 +163,7 @@ The goal is for artificial intelligence to have few valid paths for generating a
 
 A primitive does not know the implementation, consumers, or undeclared dependencies of another primitive. Every relationship between primitives exists only through contracts explicitly provided during composition.
 
-A primitive may use only the primitive descriptors, query results, inputs, and context capabilities explicitly supplied to it. It does not discover dependencies through a global registry during execution. A primitive may know the contracts it receives, but it does not know their internal implementations or the consumers that use its own contract.
+A primitive may use only the primitive descriptors, query results, inputs, and runtime capabilities explicitly supplied to it. It does not discover dependencies through a global registry during execution. A primitive may know the contracts it receives, but it does not know their internal implementations or the consumers that use its own contract.
 
 ## Contract terminology and provenance
 
@@ -187,19 +187,19 @@ Descriptor objects are process-local capabilities. Cloning, spreading, serializi
 
 A runtime proposal is a frozen, opaque, process-local value created through the official constructor of an event or error descriptor.
 
-Hyperkernel stores proposal provenance in a separate module-private `WeakMap`. The private record contains the exact descriptor that created the proposal, an immutable snapshot of its payload, unresolved context references, and any lifecycle metadata required by the kernel.
+Hyperkernel stores proposal provenance in a separate module-private `WeakMap`. The private record contains the exact descriptor that created the proposal, an immutable snapshot of its payload, unresolved capability references, and any lifecycle metadata required by the kernel.
 
 Proposal provenance and payload are not represented by public mutable properties. A structurally similar object is not a valid proposal, even when it contains the same descriptor name and payload.
 
 Before accepting a proposal, the kernel verifies that the proposal and its originating descriptor exist in their respective private registries, that the exact descriptor is registered with the executing kernel, that it was explicitly authorized by the current composition, and that its primitive kind is valid in that position.
 
-After context references have been materialized, the kernel validates the concrete payload against the originating descriptor's schema. A provenance or validation failure is a technical failure.
+After capability references have been materialized, the kernel validates the concrete payload against the originating descriptor's schema. A provenance or validation failure is a technical failure.
 
 Runtime proposals are not serialized or persisted. The event log receives only materialized event identity and payload. When an accepted value must be returned publicly, such as a declared business rejection, Hyperkernel creates a separate immutable value containing the public descriptor reference and validated payload. Internal descriptor and proposal metadata never crosses that boundary.
 
 ### Materialized and committed values
 
-A materialized value is a runtime proposal whose context references have been replaced with concrete values and whose final schema has been validated. A committed value is a materialized value that the kernel has successfully accepted and persisted.
+A materialized value is a runtime proposal whose capability references have been replaced with concrete values and whose final schema has been validated. A committed value is a materialized value that the kernel has successfully accepted and persisted.
 
 The lifecycle is:
 
@@ -275,7 +275,7 @@ A `projection` defines an atomic read model and exclusively owns one or more dec
 
 Each projection explicitly declares the registered event descriptors it accepts and exactly one synchronous transition for each accepted event. Events not declared by the projection do not affect it. Multiple projections may accept the same event.
 
-A transition determines the projection's next state from its current state and one materialized, validated event. It may read and modify only structures owned by that projection. It does not receive context, queries, other projections, the event log, the kernel, or the SQLite connection.
+A transition determines the projection's next state from its current state and one materialized, validated event. It may read and modify only structures owned by that projection. It does not receive runtime capabilities, queries, other projections, the event log, the kernel, or the SQLite connection.
 
 A transition may change multiple rows and multiple owned structures as one atomic update. It cannot make business decisions, reject an event, produce another event, or perform external effects.
 
@@ -307,7 +307,7 @@ Hyperkernel prepares and validates the statement using SQLite's execution metada
 
 Queries do not receive the SQLite connection. Hyperkernel executes them through a restricted read capability that exposes only the structures owned by their declared projection dependencies. An unauthorized read or non-read-only statement is an invalid composition or technical failure, not a business rejection.
 
-Bindings between commands, policies, and queries use a declarative field-mapping representation rather than callbacks. A binding may select fields, rename them, and construct the destination input structure. It cannot calculate values, make decisions, call arbitrary functions, access context, or read ambient state. The resulting value is validated by the destination primitive's independent input schema.
+Bindings between commands, policies, and queries use a declarative field-mapping representation rather than callbacks. A binding may select fields, rename them, and construct the destination input structure. It cannot calculate values, make decisions, call arbitrary functions, access runtime capabilities, or read ambient state. The resulting value is validated by the destination primitive's independent input schema.
 
 A query may omit its input schema when no parameters are required. Omission means that the query accepts no input.
 
@@ -363,7 +363,7 @@ Executing a command returns synchronously with one of three expected outcomes: s
 
 Structurally invalid command input returns an `invalid` result containing a normalized list of validation issues. Each issue identifies a stable validation code, its path within the command input, and a human-readable message. Hyperkernel does not expose the validation library's native error representation.
 
-Command validation occurs before a transaction begins. Invalid input does not execute policies, queries, resolvers, context capabilities, events, or projection updates. Structural validation issues are not declared business errors and do not use error descriptors.
+Command validation occurs before a transaction begins. Invalid input does not execute policies, queries, resolvers, runtime capabilities, events, or projection updates. Structural validation issues are not declared business errors and do not use error descriptors.
 
 When a policy rejects the command, execution returns a `rejected` result containing the materialized and validated value produced by that policy's declared error descriptor. The error preserves its descriptor identity and payload. It is returned only after the transaction has rolled back and is not committed to the event log.
 
@@ -379,38 +379,81 @@ Technical failures preserve their original cause for infrastructure logging but 
 
 Invalid kernel composition remains an initialization failure and prevents command execution entirely.
 
-## Execution context
+## Runtime capabilities
 
-The application explicitly supplies a `context` to the kernel. Primitives may receive the limited parts of that context required to construct their descriptions. For example, a query may receive a clock capability while constructing its SQL description. Context does not expose the SQLite connection, the kernel instance, or general infrastructure.
+A runtime capability is a frozen, process-local infrastructure contract created through a Hyperkernel factory. It declares a unique name, an optional Zod input schema, a Zod output schema, and a materialization policy. Runtime capabilities are not business primitives.
 
-A context capability returns a limited runtime description recognized by the kernel rather than performing the operation immediately. For example, `context.now()` describes the need for a time value instead of returning the concrete time at declaration.
+Capability input and output types are inferred from their Zod schemas. Object identity is authoritative, while the declared name exists for diagnostics and composition validation.
 
-A primitive does not need a separate duplicate list of context capabilities. The context references contained in its runtime proposals record the capabilities it used. The kernel accepts only references created by context capabilities registered with that execution.
+### Providers and kernel registration
+
+Capability definition is separate from implementation. When creating a kernel, the application binds each capability descriptor to a synchronous provider. Different kernels may provide different implementations for the same descriptor, allowing production and tests to use different environmental sources.
+
+A provider receives only its validated capability input and returns a concrete value that is validated against the capability's output schema. It does not receive the kernel or SQLite connection. It may access only the ambient API that its capability exists to encapsulate and must perform short, bounded, local work.
+
+Runtime capabilities are always synchronous. A provider cannot return a `Promise`, thenable, asynchronous iterator, stream, or pending operation. This synchrony is part of the runtime capability contract rather than only a constraint of the first implementation because capability materialization may occur inside a SQLite transaction.
+
+Hyperkernel rejects invalid capability descriptors, duplicate capability names, duplicate providers, dependencies without providers, and asynchronous providers during kernel initialization whenever the violation can be detected eagerly. If a provider returns a promise-like value during materialization, execution fails with a technical error and the current transaction rolls back. An exception or output-validation failure from a provider is also a technical failure.
+
+Network access, asynchronous storage, waiting, retries, and external interactions do not belong to runtime capabilities. They require an effect, a workflow, a future explicit external-read contract, resolution before kernel execution, or inclusion in the command input when the value belongs to the request.
+
+### Primitive capability access
+
+A capability-aware contract explicitly declares a named mapping of the capabilities available to it. This mapping both declares each dependency and determines the exact capability access visible to its handler. A separate duplicate dependency list is not required.
+
+A capability may be supplied as a materialized input or as a deferred reference capability.
+
+A materialized input is resolved and validated by the kernel before the handler executes. The handler receives the concrete output and may use it in its pure calculation or decision.
+
+A deferred reference capability creates an opaque `CapabilityReference` that may be included in a query description, event proposal, or error proposal. Application code cannot inspect or resolve the reference.
+
+A primitive cannot access undeclared capabilities, provider implementations, the complete capability registry, the kernel, or the SQLite connection. Projections receive only materialized, validated events and do not receive runtime capabilities.
+
+### Capability references
+
+A capability reference is a frozen, opaque, process-local value created through a registered capability. Hyperkernel stores its capability identity, validated input, materialization policy, and reference identity in a private `WeakMap`.
+
+A structurally similar value is not a valid capability reference. References cannot be inspected, directly materialized, serialized, persisted, or used as concrete capability values.
+
+The kernel accepts only references created by capabilities registered with the executing kernel and explicitly authorized for the current contract. Every reference is materialized before final schema validation and persistence. Capability references never reach the event log or projection handlers.
+
+### Materialization policies
+
+The first implementation supports `execution` and `reference` materialization.
+
+An `execution` capability is materialized at most once during one command or standalone query execution. Every dependency and reference to that capability receives the same validated value. The value is not reused across executions. Execution-scoped capabilities accept no input in the first implementation.
+
+A `reference` capability is materialized once for each distinct reference. Reusing the same reference produces the same value, while creating separate references produces separately materialized values. References are processed in deterministic encounter order.
+
+No input-keyed, kernel-global, or additional caching policy is introduced until a concrete use case requires it.
 
 ### Materialization
 
-Each context reference is resolved exactly once during a procedure execution and is replaced with its concrete value before that value is consumed. Materialization occurs in stages inside the procedure transaction:
+Capability materialization is demand-driven. Each dependency or reference is resolved according to its declared policy and is replaced with its concrete value before that value is consumed. Materialization occurs in stages inside the procedure transaction:
 
 1. Validate the command input.
 2. Begin the transaction and establish the consistent state for the procedure.
 3. Build and validate policy inputs.
-4. Materialize context required by policy queries and decisions.
-5. Execute policies in declaration order, stopping at the first rejection.
-6. Materialize context required by resolver queries and execute those queries against the same consistent state.
-7. Execute the resolvers and collect their event proposals.
-8. Materialize context references contained in those event proposals.
-9. Validate every concrete event payload.
-10. Append the events, update the projections, and commit the transaction.
+4. Materialize capabilities required by policy queries and decisions.
+5. Execute policies in declaration order. If a policy rejects the command, materialize and validate its error proposal, roll back, and return the rejection.
+6. Materialize capabilities required by resolver queries and execute those queries against the same consistent state.
+7. Materialize resolver inputs that require concrete capability values.
+8. Execute the resolvers and collect their event proposals.
+9. Materialize capability references contained in those event proposals.
+10. Validate every concrete event payload.
+11. Append the events, update the projections, and commit the transaction.
 
-Context required only by resolvers or events is not materialized when a policy rejects the procedure.
+Invalid command input materializes nothing. Capabilities required only by resolvers or events are not materialized when a policy rejects the procedure. A standalone query creates its own execution scope and observes the latest committed projection state.
 
-Runtime context references never reach the event log. Projections receive only materialized, validated events and do not access context. If the transaction fails, all values generated for that execution are discarded with the rest of the operation.
+After execution commits, rejects, or fails, the kernel discards the execution scope, including its references and materialization caches. Concrete values already included in committed events or in a returned business rejection remain only as immutable materialized data. Runtime capability references and provider state never reach the event log or public result.
 
 ### Transactional clock
 
-Every `context.now()` reference created during the same procedure execution resolves to the same transactional time, including references used by policies, queries, and multiple event proposals. The execution resolves the clock once and reuses that value for every clock reference in the transaction.
+The transactional clock is an ordinary runtime capability using the `execution` materialization policy.
 
-The context provides the explicit architectural path for environmental values, but it does not prevent arbitrary JavaScript from directly using ambient APIs such as `Date.now()`. Following the context path remains an architectural rule reinforced by tooling and review.
+Every clock dependency and reference used during the same command or standalone query execution resolves to the same transactional time. The kernel invokes the clock provider once at first demand and reuses its validated value for the remainder of that execution. A later execution materializes a separate time value.
+
+The clock provider is never invoked during descriptor definition or kernel initialization. Runtime capabilities provide the explicit architectural path for environmental values, but JavaScript may still access ambient APIs such as `Date.now()` directly. Avoiding that path remains an architectural rule reinforced by tooling, reduced Deno permissions, and review.
 
 ## Future capabilities
 
@@ -489,7 +532,7 @@ Descriptor factories infer their public TypeScript types from the supplied schem
 
 For a schema `S`, `z.input<S>` represents the value accepted before parsing and `z.output<S>` represents the validated value produced after parsing. Consumers of a validated contract boundary receive its output type.
 
-Runtime proposals may additionally accept registered context-reference types in positions that will be materialized before final validation. After materialization, the concrete payload must satisfy the originating schema's output contract.
+Runtime proposals may additionally accept registered capability-reference types in positions that will be materialized before final validation. After materialization, the concrete payload must satisfy the originating schema's output contract.
 
 Type inference provides compile-time guidance but does not replace runtime validation. The Zod schema remains authoritative whenever an unknown value crosses a contract boundary.
 
@@ -500,7 +543,7 @@ Values are validated whenever they cross a contract boundary:
 - The output of a policy-to-query binding is validated by the query input schema.
 - A query result is validated before it is supplied to a policy or resolver.
 - A runtime proposal is checked for provenance and permitted descriptors.
-- An event payload is validated against its final schema after all context references have been materialized and before the event is appended.
+- An event payload is validated against its final schema after all capability references have been materialized and before the event is appended.
 
 Zod capabilities such as `transform` and `refine` may perform structural normalization, establish canonical representations, and enforce invariants belonging to the value being validated. A binding must not use normalization as a place to hide a business decision or business calculation.
 
@@ -787,20 +830,8 @@ The current primitives are sufficient to build every stage of the task applicati
 
 The current use case does not require `effect` because it has no external interactions or asynchronous work. It also does not require `workflow` because no feature depends on causal coordination between multiple procedures.
 
-No need for another primitive has been identified. The outstanding matters are domain decisions or incomplete contracts of the existing primitives.
-
-## Open questions
-
-These questions must be answered before the contracts of the first implementation can be considered complete.
-
-### 1. Context public API
-
-The context semantics and transactional materialization phases are defined, but the public API still needs to determine:
-
-- How context capabilities are registered and provided to the kernel.
-- How primitives receive the parts of context available to them.
-- How materialization policies other than the transactional clock are represented.
+No need for another primitive has been identified. The contracts required for the first implementation are sufficiently defined to begin incremental implementation.
 
 ## Next step
 
-Continue resolving the open questions one at a time without choosing API shapes or runtime mechanisms before their requirements are discussed. Implement the use-case stages incrementally as the contracts required by each stage are completed.
+Begin Stage 1 by translating the resolved contracts into the smallest public TypeScript API and executable back end required to add a task. Implement and verify only the capabilities required by that stage before proceeding to the next use-case stage.
