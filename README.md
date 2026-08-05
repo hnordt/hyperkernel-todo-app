@@ -169,13 +169,33 @@ A primitive may use only the primitive descriptors, query results, inputs, and c
 
 ### Primitive descriptor
 
-A primitive descriptor is a static contract definition registered with a kernel. It declares the identity, schemas, dependencies, and limits of a primitive.
+A primitive descriptor is a frozen, process-local contract object created only through a Hyperkernel factory. It declares the identity, schemas, dependencies, and limits of one primitive.
+
+The descriptor object's identity is its authoritative runtime identity. Its declared name exists for human-readable contracts, diagnostics, composition validation, and persisted event identification, but the name is not runtime authority. A structurally similar object, including one with the same name, is not the same descriptor.
+
+Hyperkernel stores each descriptor's internal record in a module-private `WeakMap`. The record contains its primitive kind, schemas, dependencies, constructors, validation rules, and other kind-specific implementation details. These values are not exposed as public properties.
+
+The public descriptor exposes only stable contract-level information, such as its kind and name, and the operations permitted for that primitive. Event and error descriptors expose their official proposal constructors. Execution remains the responsibility of the kernel.
+
+Descriptor factories return nominally typed objects using non-public TypeScript brands. Nominal typing prevents structurally similar object literals from satisfying descriptor types during compilation. At runtime, Hyperkernel recognizes descriptors only through private `WeakMap` membership and exact object identity.
+
+Registration belongs to an individual kernel rather than to the descriptor. The same descriptor may be registered with multiple kernels, but each kernel independently validates its names, dependencies, and compositions.
+
+Descriptor objects are process-local capabilities. Cloning, spreading, serializing, or reconstructing a descriptor does not preserve its identity and produces a value that Hyperkernel will not recognize.
 
 ### Runtime proposal
 
-A runtime proposal is an opaque, immutable value produced during execution through the official constructor of a primitive descriptor. It carries verifiable provenance to the primitive descriptor that created it and may contain unresolved context references.
+A runtime proposal is a frozen, opaque, process-local value created through the official constructor of an event or error descriptor.
 
-The internal representation of provenance is not part of the public contract. The implementation may use private metadata, object identity, or another non-public mechanism, as long as provenance remains verifiable through the supported API.
+Hyperkernel stores proposal provenance in a separate module-private `WeakMap`. The private record contains the exact descriptor that created the proposal, an immutable snapshot of its payload, unresolved context references, and any lifecycle metadata required by the kernel.
+
+Proposal provenance and payload are not represented by public mutable properties. A structurally similar object is not a valid proposal, even when it contains the same descriptor name and payload.
+
+Before accepting a proposal, the kernel verifies that the proposal and its originating descriptor exist in their respective private registries, that the exact descriptor is registered with the executing kernel, that it was explicitly authorized by the current composition, and that its primitive kind is valid in that position.
+
+After context references have been materialized, the kernel validates the concrete payload against the originating descriptor's schema. A provenance or validation failure is a technical failure.
+
+Runtime proposals are not serialized or persisted. The event log receives only materialized event identity and payload. When an accepted value must be returned publicly, such as a declared business rejection, Hyperkernel creates a separate immutable value containing the public descriptor reference and validated payload. Internal descriptor and proposal metadata never crosses that boundary.
 
 ### Materialized and committed values
 
@@ -768,13 +788,6 @@ The context semantics and transactional materialization phases are defined, but 
 - How context capabilities are registered and provided to the kernel.
 - How primitives receive the parts of context available to them.
 - How materialization policies other than the transactional clock are represented.
-
-### 2. Descriptor representation
-
-Primitive descriptor identity, runtime proposal opacity, and provenance validation are required. The concrete implementation still needs to determine:
-
-- Whether descriptor provenance uses object identity, private metadata, a `WeakMap`, or another mechanism.
-- How descriptors appear in the public API without exposing their internal representation.
 
 ## Next step
 
