@@ -479,9 +479,19 @@ The back end, primitives, SQLite access, checks, and executable examples must wo
 
 Implementation decisions should prefer capabilities available in the runtime itself and avoid introducing tools or dependencies that are not required to validate the architecture.
 
-### Independent schemas and runtime validation
+### Independent schemas, runtime validation, and type inference
 
-Each primitive owns its schemas independently of every other primitive. A command input schema, policy input schema, query input schema, query result schema, event payload schema, and error payload schema are separate contracts even when they contain fields with the same names or types.
+The first implementation uses Zod as its runtime schema system. Commands, policies, queries, events, and errors declare Zod schemas at their respective contract boundaries.
+
+Each contract owns its schemas independently of every other contract. A command input schema, policy input schema, query input schema, query result schema, event payload schema, and error payload schema remain separate contracts even when they contain fields with the same names or types.
+
+Descriptor factories infer their public TypeScript types from the supplied schemas whenever those types can be derived from the schema. Application code should not maintain a separate manually declared TypeScript type for a value already defined by a Zod schema.
+
+For a schema `S`, `z.input<S>` represents the value accepted before parsing and `z.output<S>` represents the validated value produced after parsing. Consumers of a validated contract boundary receive its output type.
+
+Runtime proposals may additionally accept registered context-reference types in positions that will be materialized before final validation. After materialization, the concrete payload must satisfy the originating schema's output contract.
+
+Type inference provides compile-time guidance but does not replace runtime validation. The Zod schema remains authoritative whenever an unknown value crosses a contract boundary.
 
 Values are validated whenever they cross a contract boundary:
 
@@ -492,7 +502,9 @@ Values are validated whenever they cross a contract boundary:
 - A runtime proposal is checked for provenance and permitted descriptors.
 - An event payload is validated against its final schema after all context references have been materialized and before the event is appended.
 
-Zod schemas may use capabilities such as `transform` and `refine` for structural normalization, canonical representation, and invariants belonging to the value being validated. A binding must not use normalization as a place to hide a business decision or business calculation.
+Zod capabilities such as `transform` and `refine` may perform structural normalization, establish canonical representations, and enforce invariants belonging to the value being validated. A binding must not use normalization as a place to hide a business decision or business calculation.
+
+An explicit TypeScript type may supplement a contract only when the required relationship cannot be derived from its Zod schemas. It cannot replace the runtime schema.
 
 When an input schema is omitted, the primitive accepts no input. Omission does not mean an unknown or unrestricted input.
 
