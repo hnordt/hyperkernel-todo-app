@@ -337,6 +337,28 @@ Policies authorize an attempt to execute the procedure. A later technical failur
 
 A procedure is accepted only after every resolver has produced and validated exactly one event proposal, every event and projection update has succeeded, and the transaction has committed. A committed procedure has no partial result, optional resolver, or eventless result.
 
+#### Command execution result
+
+Executing a command returns synchronously with one of three expected outcomes: structurally invalid input, a declared business rejection, or a committed procedure. Unexpected technical failures are thrown rather than represented as command outcomes.
+
+Structurally invalid command input returns an `invalid` result containing a normalized list of validation issues. Each issue identifies a stable validation code, its path within the command input, and a human-readable message. Hyperkernel does not expose the validation library's native error representation.
+
+Command validation occurs before a transaction begins. Invalid input does not execute policies, queries, resolvers, context capabilities, events, or projection updates. Structural validation issues are not declared business errors and do not use error descriptors.
+
+When a policy rejects the command, execution returns a `rejected` result containing the materialized and validated value produced by that policy's declared error descriptor. The error preserves its descriptor identity and payload. It is returned only after the transaction has rolled back and is not committed to the event log.
+
+A declared business rejection is an expected result and is not thrown as an exception.
+
+A procedure returns `committed` only after every resolver has produced its declared event, every event has been materialized and validated, every event and projection update has succeeded, and SQLite has committed the transaction.
+
+A committed result contains no event payload or projection state. Commands represent mutations, while queries provide the application's read contracts. A caller may execute a query immediately after receiving `committed` and observe the resulting state.
+
+An unexpected technical failure causes the current transaction to roll back and is then thrown synchronously as a Hyperkernel execution error. Technical failures include invalid internal contract values, unauthorized runtime proposals, query-result validation failures, event validation failures, projection failures, SQLite failures, and commit failures.
+
+Technical failures preserve their original cause for infrastructure logging but are not represented as declared business errors. Transport adapters must not expose internal causes, SQLite details, or stack traces directly to clients.
+
+Invalid kernel composition remains an initialization failure and prevents command execution entirely.
+
 ## Execution context
 
 The application explicitly supplies a `context` to the kernel. Primitives may receive the limited parts of that context required to construct their descriptions. For example, a query may receive a clock capability while constructing its SQL description. Context does not expose the SQLite connection, the kernel instance, or general infrastructure.
@@ -753,15 +775,6 @@ Primitive descriptor identity, runtime proposal opacity, and provenance validati
 
 - Whether descriptor provenance uses object identity, private metadata, a `WeakMap`, or another mechanism.
 - How descriptors appear in the public API without exposing their internal representation.
-
-### 3. Command execution result
-
-The public contract still needs to determine:
-
-- How structurally invalid input is represented.
-- How a declared business rejection is represented.
-- What a committed procedure returns.
-- How an unexpected technical failure is exposed.
 
 ## Next step
 
