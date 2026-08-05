@@ -448,6 +448,18 @@ SQLite is part of the architecture of the first implementation and is not treate
 
 The system must take advantage of its guarantees and respect its operational constraints.
 
+#### Execution topology
+
+The kernel owns exactly one long-lived SQLite connection.
+
+Every procedure starts with `BEGIN IMMEDIATE` before executing any state-dependent query. This establishes the procedure as a write transaction before policies and resolvers inspect the current state. The procedure therefore does not begin as a reader and later attempt to acquire the writer after its decisions have already been made.
+
+All policy and resolver queries execute synchronously through the same connection and transaction. They observe the committed state that existed before the procedure started. Procedure queries finish before events are appended and projections are updated, so they do not observe state produced by the current procedure.
+
+Each query result is fully materialized and validated before it is supplied to a policy or resolver. Statements, cursors, lazy iterators, and references to the SQLite connection do not cross the query execution boundary or remain available after the query finishes.
+
+A successful commit makes the resulting projection state visible to subsequent queries. A rollback preserves the state that existed before the procedure started.
+
 #### Operational model
 
 - There is only one write at a time.
@@ -582,6 +594,18 @@ A person can:
 - The list preserves the selected order during the current execution.
 - An action on a nonexistent task fails and does not change another task.
 - Tasks do not need to remain available after the application terminates.
+
+#### Invalid transitions
+
+Invalid state transitions are rejected explicitly by policies:
+
+- Completing an already completed task is rejected with `TaskAlreadyCompleted`.
+- Reopening an already open task is rejected with `TaskAlreadyOpen`.
+- Moving a task to an invalid position is rejected with `InvalidTaskPosition`.
+
+Each policy evaluates the current state before any resolver is executed. A rejected command produces no event, causes no projection change, and returns its declared business error.
+
+The UI receives the structured rejection and decides how to present or handle it according to the interaction.
 
 #### Task identifier
 
@@ -724,19 +748,7 @@ Primitive descriptor identity, runtime proposal opacity, and provenance validati
 - Whether descriptor provenance uses object identity, private metadata, a `WeakMap`, or another mechanism.
 - How descriptors appear in the public API without exposing their internal representation.
 
-### 5. SQLite execution topology
-
-The kernel owns exactly one long-lived SQLite connection.
-
-Every procedure starts with `BEGIN IMMEDIATE` before executing any state-dependent query. This establishes the procedure as a write transaction before policies and resolvers inspect the current state. The procedure therefore does not begin as a reader and later attempt to acquire the writer after its decisions have already been made.
-
-All policy and resolver queries execute synchronously through the same connection and transaction. They observe the committed state that existed before the procedure started. Procedure queries finish before events are appended and projections are updated, so they do not observe state produced by the current procedure.
-
-Each query result is fully materialized and validated before it is supplied to a policy or resolver. Statements, cursors, lazy iterators, and references to the SQLite connection do not cross the query execution boundary or remain available after the query finishes.
-
-A successful commit makes the resulting projection state visible to subsequent queries. A rollback preserves the state that existed before the procedure started.
-
-### 6. Command execution result
+### 5. Command execution result
 
 The public contract still needs to determine:
 
@@ -744,16 +756,6 @@ The public contract still needs to determine:
 - How a declared business rejection is represented.
 - What a committed procedure returns.
 - How an unexpected technical failure is exposed.
-
-### 7. Behavior of invalid transitions
-
-It is necessary to decide what happens when a person attempts to:
-
-- Complete a task that is already completed.
-- Reopen a task that is already open.
-- Move a task to an invalid position.
-
-Each situation may be accepted without a change, rejected by a policy with a declared error, or receive another explicit rule. The chosen behavior belongs to the application domain and does not require a new primitive.
 
 ## Next step
 
