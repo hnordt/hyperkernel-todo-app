@@ -275,11 +275,25 @@ Different projections may exist for different read requirements even when they c
 
 A `query` defines a read offered by the application.
 
-It may use one or more projections and independently declares its input schema and result schema. There is no required one-to-one correspondence between a query and a projection.
+Each query explicitly declares one or more projection descriptors under local dependency names. These descriptor references, rather than projection-name strings, determine which read models the query is authorized to access. Every declared projection must be registered with the same kernel.
 
-A query may omit its input schema when no parameters are required. Its input is validated before execution, and its result is validated before being supplied to another primitive.
+Declaring a projection authorizes the query to read the structures owned by that projection. A query may combine structures from multiple declared projections, but it cannot read undeclared projections, the event log, SQLite metadata, temporary structures, or internal Hyperkernel structures.
 
-Its definition may contain details such as SQL, but those details are not part of using the query. Its consumers depend only on its declared inputs and result.
+The query definition is the only boundary that needs to understand the storage schemas of its projections. Consumers depend only on the query descriptor, its input schema, and its result schema.
+
+Each query declares exactly one static, parameterized SQL statement. Runtime values are supplied only through bound parameters and cannot construct SQL identifiers, fragments, clauses, or additional statements.
+
+Hyperkernel prepares and validates the statement using SQLite's execution metadata or authorization facilities. The statement may perform reads, including joins, common table expressions, subqueries, aggregates, and window functions. It cannot mutate data or schemas, control transactions, execute pragmas, attach databases, or create temporary structures. SQL text inspection alone is not considered sufficient enforcement.
+
+Queries do not receive the SQLite connection. Hyperkernel executes them through a restricted read capability that exposes only the structures owned by their declared projection dependencies. An unauthorized read or non-read-only statement is an invalid composition or technical failure, not a business rejection.
+
+Bindings between commands, policies, and queries use a declarative field-mapping representation rather than callbacks. A binding may select fields, rename them, and construct the destination input structure. It cannot calculate values, make decisions, call arbitrary functions, access context, or read ambient state. The resulting value is validated by the destination primitive's independent input schema.
+
+A query may omit its input schema when no parameters are required. Omission means that the query accepts no input.
+
+A standalone query observes the latest committed projection state. When a query belongs to a procedure, it executes synchronously through the procedure's existing connection and transaction and observes the state from before that procedure's events are appended.
+
+Every query result is fully materialized and validated before leaving the query boundary. Statements, cursors, lazy iterators, projection capabilities, and SQLite connection references never escape.
 
 ### Procedure
 
@@ -725,18 +739,7 @@ No need for another primitive has been identified. The outstanding matters are d
 
 These questions must be answered before the contracts of the first implementation can be considered complete.
 
-### 1. Query execution and authorization contract
-
-A query now has independent input and result schemas, but its execution contract still needs to define:
-
-- How dependencies on projections are represented in the public API.
-- How authorized reads are declared and enforced.
-- How the read-only boundary is enforced for SQL.
-- Whether bindings use callbacks or a declarative representation.
-
-The semantic data flow is defined, but the choice between callbacks and a declarative binding representation remains open.
-
-### 2. Context public API
+### 1. Context public API
 
 The context semantics and transactional materialization phases are defined, but the public API still needs to determine:
 
@@ -744,14 +747,14 @@ The context semantics and transactional materialization phases are defined, but 
 - How primitives receive the parts of context available to them.
 - How materialization policies other than the transactional clock are represented.
 
-### 3. Descriptor representation
+### 2. Descriptor representation
 
 Primitive descriptor identity, runtime proposal opacity, and provenance validation are required. The concrete implementation still needs to determine:
 
 - Whether descriptor provenance uses object identity, private metadata, a `WeakMap`, or another mechanism.
 - How descriptors appear in the public API without exposing their internal representation.
 
-### 4. Command execution result
+### 3. Command execution result
 
 The public contract still needs to determine:
 
