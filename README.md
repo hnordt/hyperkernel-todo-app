@@ -5,16 +5,20 @@
 This document formalizes:
 
 - The goals of the Hyperkernel architecture.
-- Its role as a constrained environment for generating business logic with artificial intelligence.
+- Its role as a constrained environment for generating business logic with
+  artificial intelligence.
 - The responsibilities and boundaries of the current primitives.
 - Future capabilities that have already been identified but remain out of scope.
 - The technical constraints assumed by the first implementation.
 - A method for evaluating the architecture's coherence and sufficiency.
 - A minimal task application used as the first use case.
 
-The To Do App is not the main subject of this document. It was chosen because it is simple enough to expose real needs without introducing unnecessary domain or infrastructure concerns.
+The To Do App is not the main subject of this document. It was chosen because it
+is simple enough to expose real needs without introducing unnecessary domain or
+infrastructure concerns.
 
-Its role is to allow the architecture to be evaluated through concrete functionality. At each stage of the application, it will be possible to verify:
+Its role is to allow the architecture to be evaluated through concrete
+functionality. At each stage of the application, it will be possible to verify:
 
 - Which contracts are required.
 - Which primitives can express them.
@@ -26,14 +30,21 @@ Its role is to allow the architecture to be evaluated through concrete functiona
 
 ### A business language for artificial intelligence and humans
 
-The primary goal of Hyperkernel is to allow artificial intelligence to declare an application's business and domain logic using a small set of explicit and constrained contracts.
+The primary goal of Hyperkernel is to allow artificial intelligence to declare
+an application's business and domain logic using a small set of explicit and
+constrained contracts.
 
-These contracts form a business language. Commands, policies, errors, events, projections, queries, and procedures represent the vocabulary and relationships of the domain. Larger features are built by composing these elements.
+These contracts form a business language. Commands, policies, errors, events,
+projections, queries, and procedures represent the vocabulary and relationships
+of the domain. Larger features are built by composing these elements.
 
 The same representation must serve two audiences:
 
-- Artificial intelligence receives clear boundaries for what it may declare within each primitive.
-- A person can read the contracts and understand intentions, rules, failures, facts, reads, and compositions without reconstructing the behavior from generic code.
+- Artificial intelligence receives clear boundaries for what it may declare
+  within each primitive.
+- A person can read the contracts and understand intentions, rules, failures,
+  facts, reads, and compositions without reconstructing the behavior from
+  generic code.
 
 Hyperkernel provides the application's common mechanism:
 
@@ -44,15 +55,24 @@ Hyperkernel provides the application's common mechanism:
 - Composition and execution of features.
 - Integration with the permitted infrastructure.
 
-The contracts declared for each application provide its domain language. As a result, consumers and composers of these contracts remain strongly separated from the details of storage, transactions, concurrency, and execution.
+The contracts declared for each application provide its domain language. As a
+result, consumers and composers of these contracts remain strongly separated
+from the details of storage, transactions, concurrency, and execution.
 
-This decoupling does not mean that every contract definition is independent of technical details, nor that the domain is independent of Hyperkernel. The domain deliberately depends on the constrained vocabulary provided by the architecture, and some contracts need to understand the mechanism they encapsulate.
+This decoupling does not mean that every contract definition is independent of
+technical details, nor that the domain is independent of Hyperkernel. The domain
+deliberately depends on the constrained vocabulary provided by the architecture,
+and some contracts need to understand the mechanism they encapsulate.
 
 ### Boundaries for implementation details
 
-Hyperkernel does not aim to eliminate every implementation detail. It aims to constrain where each detail may appear and prevent it from spreading throughout the rest of the application.
+Hyperkernel does not aim to eliminate every implementation detail. It aims to
+constrain where each detail may appear and prevent it from spreading throughout
+the rest of the application.
 
-Defining a primitive may require technical knowledge. For example, creating a query may require its author to understand SQL, the available projections, and the structure of the queried data.
+Defining a primitive may require technical knowledge. For example, creating a
+query may require its author to understand SQL, the available projections, and
+the structure of the queried data.
 
 After the query has been created, its consumers use only its contract:
 
@@ -62,17 +82,25 @@ After the query has been created, its consumers use only its contract:
 - The dependencies it declares.
 - The guarantees provided by Hyperkernel.
 
-A policy, resolver, or procedure that uses this query does not need to know the internal SQL used to produce its result.
+A policy, resolver, or procedure that uses this query does not need to know the
+internal SQL used to produce its result.
 
-The same rule applies to the other primitives: unavoidable details remain confined to the contract-definition boundary, while usage and composition depend only on the declared interface.
+The same rule applies to the other primitives: unavoidable details remain
+confined to the contract-definition boundary, while usage and composition depend
+only on the declared interface.
 
-The goal, therefore, is not absolute decoupling. It is to reduce the reach of implementation details, create clear boundaries, and prevent a local technical decision from becoming required knowledge throughout the business logic.
+The goal, therefore, is not absolute decoupling. It is to reduce the reach of
+implementation details, create clear boundaries, and prevent a local technical
+decision from becoming required knowledge throughout the business logic.
 
-A boundary is working when the internal implementation of a primitive can change without changing its consumers, as long as its contract and behavior remain the same.
+A boundary is working when the internal implementation of a primitive can change
+without changing its consumers, as long as its contract and behavior remain the
+same.
 
 ### Code generation with constraints
 
-Hyperkernel seeks to reduce the degrees of freedom available to artificial intelligence while generating business logic.
+Hyperkernel seeks to reduce the degrees of freedom available to artificial
+intelligence while generating business logic.
 
 - Each primitive allows only one responsibility.
 - Inputs, dependencies, and results are declared.
@@ -81,17 +109,25 @@ Hyperkernel seeks to reduce the degrees of freedom available to artificial intel
 - The possible forms of composition are defined by the architecture.
 - Invalid contracts or forbidden combinations must be rejected by the system.
 
-These constraints do not guarantee that artificial intelligence will never make an incorrect decision. They make incompatible behavior harder to express and make omissions, inventions, and misplaced responsibilities easier to identify during human review.
+These constraints do not guarantee that artificial intelligence will never make
+an incorrect decision. They make incompatible behavior harder to express and
+make omissions, inventions, and misplaced responsibilities easier to identify
+during human review.
 
-In this sense, Hyperkernel acts as a framework for formally declaring the business and using that declaration to build a coherent application.
+In this sense, Hyperkernel acts as a framework for formally declaring the
+business and using that declaration to build a coherent application.
 
 ### Explicit contracts
 
 Everything that determines system behavior must be declared explicitly.
 
-Business rules, expected failures, facts, read structures, and composition relationships must not remain hidden inside handlers, callbacks, or internal execution details.
+Business rules, expected failures, facts, read structures, and composition
+relationships must not remain hidden inside handlers, callbacks, or internal
+execution details.
 
-Contracts exist primarily to make the system visible, inspectable, and verifiable. Their potential for reuse is a secondary benefit, not their main purpose.
+Contracts exist primarily to make the system visible, inspectable, and
+verifiable. Their potential for reuse is a secondary benefit, not their main
+purpose.
 
 When designing a feature, it must be possible to answer:
 
@@ -120,36 +156,54 @@ Responsibilities must not be combined for convenience inside the same handler.
 
 ### Pure and constrained functions
 
-Handlers and callbacks receive only the inputs declared by their contracts and return only the descriptions those contracts permit.
+Handlers and callbacks receive only the inputs declared by their contracts and
+return only the descriptions those contracts permit.
 
-They do not receive broad capabilities for changing the system and must not hide:
+They do not receive broad capabilities for changing the system and must not
+hide:
 
 - Side effects.
 - Business decisions.
 - Expected failures.
 - Calculations that belong to another responsibility.
 
-A calculation remains allowed when it constitutes the explicit responsibility of a contract. For example, a resolver may purely calculate event data from a command and its declared queries. It must not use that calculation to hide a policy, produce an effect, or change state directly.
+A calculation remains allowed when it constitutes the explicit responsibility of
+a contract. For example, a resolver may purely calculate event data from a
+command and its declared queries. It must not use that calculation to hide a
+policy, produce an effect, or change state directly.
 
 ### Enforcement boundary
 
-Hyperkernel provides the explicit architectural path that application code and code generated by artificial intelligence are expected to follow. It restricts the inputs and capabilities supplied to handlers and validates the boundaries it controls.
+Hyperkernel provides the explicit architectural path that application code and
+code generated by artificial intelligence are expected to follow. It restricts
+the inputs and capabilities supplied to handlers and validates the boundaries it
+controls.
 
-Hyperkernel is not a sandbox or a separate domain-specific language. A JavaScript function may still access ambient APIs, imported modules, or captured mutable state. Avoiding those paths remains the responsibility of the architect, the instructions given to artificial intelligence, supporting tools, and human review.
+Hyperkernel is not a sandbox or a separate domain-specific language. A
+JavaScript function may still access ambient APIs, imported modules, or captured
+mutable state. Avoiding those paths remains the responsibility of the architect,
+the instructions given to artificial intelligence, supporting tools, and human
+review.
 
-Handlers receive only their declared inputs, query results, primitive contracts, and limited runtime capabilities. They do not receive the SQLite connection, the kernel instance, or general infrastructure access. Deno permissions should also be reduced to the capabilities required by the application.
+Handlers receive only their declared inputs, query results, primitive contracts,
+and limited runtime capabilities. They do not receive the SQLite connection, the
+kernel instance, or general infrastructure access. Deno permissions should also
+be reduced to the capabilities required by the application.
 
 ### Explicit composition
 
 Procedures compose the contracts required for an individual feature.
 
-In the future, workflows may coordinate multiple procedures when there is a dependent or multi-step flow.
+In the future, workflows may coordinate multiple procedures when there is a
+dependent or multi-step flow.
 
-The orchestration layer knows the composition but does not absorb the responsibilities of the elements it coordinates.
+The orchestration layer knows the composition but does not absorb the
+responsibilities of the elements it coordinates.
 
 ### Determinism
 
-The architecture seeks to reduce the number of implicit paths through which a feature may be declared or executed.
+The architecture seeks to reduce the number of implicit paths through which a
+feature may be declared or executed.
 
 - Dependencies are declared.
 - Inputs and results have contracts.
@@ -157,49 +211,96 @@ The architecture seeks to reduce the number of implicit paths through which a fe
 - The internal execution order is determined by the system.
 - External effects are not mixed into the synchronous core.
 
-The goal is for artificial intelligence to have few valid paths for generating a feature and for the contracts to reveal the possible behavior before a person needs to follow the internal execution code.
+The goal is for artificial intelligence to have few valid paths for generating a
+feature and for the contracts to reveal the possible behavior before a person
+needs to follow the internal execution code.
 
 ### Explicit primitive relationships
 
-A primitive does not know the implementation, consumers, or undeclared dependencies of another primitive. Every relationship between primitives exists only through contracts explicitly provided during composition.
+A primitive does not know the implementation, consumers, or undeclared
+dependencies of another primitive. Every relationship between primitives exists
+only through contracts explicitly provided during composition.
 
-A primitive may use only the primitive descriptors, query results, inputs, and runtime capabilities explicitly supplied to it. It does not discover dependencies through a global registry during execution. A primitive may know the contracts it receives, but it does not know their internal implementations or the consumers that use its own contract.
+A primitive may use only the primitive descriptors, query results, inputs, and
+runtime capabilities explicitly supplied to it. It does not discover
+dependencies through a global registry during execution. A primitive may know
+the contracts it receives, but it does not know their internal implementations
+or the consumers that use its own contract.
 
 ## Contract terminology and provenance
 
 ### Primitive descriptor
 
-A primitive descriptor is a frozen, process-local contract object created only through a Hyperkernel factory. It declares the identity, schemas, dependencies, and limits of one primitive.
+A primitive descriptor is a frozen, process-local contract object created only
+through a Hyperkernel factory. It declares the identity, schemas, dependencies,
+and limits of one primitive.
 
-The descriptor object's identity is its authoritative runtime identity. Its declared name exists for human-readable contracts, diagnostics, composition validation, and persisted event identification, but the name is not runtime authority. A structurally similar object, including one with the same name, is not the same descriptor.
+The descriptor object's identity is its authoritative runtime identity. Its
+declared name exists for human-readable contracts, diagnostics, composition
+validation, and persisted event identification, but the name is not runtime
+authority. A structurally similar object, including one with the same name, is
+not the same descriptor.
 
-Hyperkernel stores each descriptor's internal record in a module-private `WeakMap`. The record contains its primitive kind, schemas, dependencies, constructors, validation rules, and other kind-specific implementation details. These values are not exposed as public properties.
+Hyperkernel stores each descriptor's internal record in a module-private
+`WeakMap`. The record contains its primitive kind, schemas, dependencies,
+constructors, validation rules, and other kind-specific implementation details.
+These values are not exposed as public properties.
 
-The public descriptor exposes only stable contract-level information, such as its kind and name, and the operations permitted for that primitive. Event and error descriptors expose their official proposal constructors. Execution remains the responsibility of the kernel.
+The public descriptor exposes only stable contract-level information, such as
+its kind and name, and the operations permitted for that primitive. Event and
+error descriptors expose their official proposal constructors. Execution remains
+the responsibility of the kernel.
 
-Descriptor factories return nominally typed objects using non-public TypeScript brands. Nominal typing prevents structurally similar object literals from satisfying descriptor types during compilation. At runtime, Hyperkernel recognizes descriptors only through private `WeakMap` membership and exact object identity.
+Descriptor factories return nominally typed objects using non-public TypeScript
+brands. Nominal typing prevents structurally similar object literals from
+satisfying descriptor types during compilation. At runtime, Hyperkernel
+recognizes descriptors only through private `WeakMap` membership and exact
+object identity.
 
-Registration belongs to an individual kernel rather than to the descriptor. The same descriptor may be registered with multiple kernels, but each kernel independently validates its names, dependencies, and compositions.
+Registration belongs to an individual kernel rather than to the descriptor. The
+same descriptor may be registered with multiple kernels, but each kernel
+independently validates its names, dependencies, and compositions.
 
-Descriptor objects are process-local capabilities. Cloning, spreading, serializing, or reconstructing a descriptor does not preserve its identity and produces a value that Hyperkernel will not recognize.
+Descriptor objects are process-local capabilities. Cloning, spreading,
+serializing, or reconstructing a descriptor does not preserve its identity and
+produces a value that Hyperkernel will not recognize.
 
 ### Runtime proposal
 
-A runtime proposal is a frozen, opaque, process-local value created through the official constructor of an event or error descriptor.
+A runtime proposal is a frozen, opaque, process-local value created through the
+official constructor of an event or error descriptor.
 
-Hyperkernel stores proposal provenance in a separate module-private `WeakMap`. The private record contains the exact descriptor that created the proposal, an immutable snapshot of its payload, unresolved capability references, and any lifecycle metadata required by the kernel.
+Hyperkernel stores proposal provenance in a separate module-private `WeakMap`.
+The private record contains the exact descriptor that created the proposal, an
+immutable snapshot of its payload, unresolved capability references, and any
+lifecycle metadata required by the kernel.
 
-Proposal provenance and payload are not represented by public mutable properties. A structurally similar object is not a valid proposal, even when it contains the same descriptor name and payload.
+Proposal provenance and payload are not represented by public mutable
+properties. A structurally similar object is not a valid proposal, even when it
+contains the same descriptor name and payload.
 
-Before accepting a proposal, the kernel verifies that the proposal and its originating descriptor exist in their respective private registries, that the exact descriptor is registered with the executing kernel, that it was explicitly authorized by the current composition, and that its primitive kind is valid in that position.
+Before accepting a proposal, the kernel verifies that the proposal and its
+originating descriptor exist in their respective private registries, that the
+exact descriptor is registered with the executing kernel, that it was explicitly
+authorized by the current composition, and that its primitive kind is valid in
+that position.
 
-After capability references have been materialized, the kernel validates the concrete payload against the originating descriptor's schema. A provenance or validation failure is a technical failure.
+After capability references have been materialized, the kernel validates the
+concrete payload against the originating descriptor's schema. A provenance or
+validation failure is a technical failure.
 
-Runtime proposals are not serialized or persisted. The event log receives only materialized event identity and payload. When an accepted value must be returned publicly, such as a declared business rejection, Hyperkernel creates a separate immutable value containing the public descriptor reference and validated payload. Internal descriptor and proposal metadata never crosses that boundary.
+Runtime proposals are not serialized or persisted. The event log receives only
+materialized event identity and payload. When an accepted value must be returned
+publicly, such as a declared business rejection, Hyperkernel creates a separate
+immutable value containing the public descriptor reference and validated
+payload. Internal descriptor and proposal metadata never crosses that boundary.
 
 ### Materialized and committed values
 
-A materialized value is a runtime proposal whose capability references have been replaced with concrete values and whose final schema has been validated. A committed value is a materialized value that the kernel has successfully accepted and persisted.
+A materialized value is a runtime proposal whose capability references have been
+replaced with concrete values and whose final schema has been validated. A
+committed value is a materialized value that the kernel has successfully
+accepted and persisted.
 
 The lifecycle is:
 
@@ -214,106 +315,189 @@ Before accepting a runtime proposal, the kernel verifies that:
 
 - Its primitive descriptor has been registered with that kernel.
 - The descriptor was explicitly supplied to the relevant composition.
-- The proposal is permitted in that position, such as an event declared by a resolver or an error declared by a policy.
-- Its provenance and payload have not been replaced by a merely structurally similar object.
+- The proposal is permitted in that position, such as an event declared by a
+  resolver or an error declared by a policy.
+- Its provenance and payload have not been replaced by a merely structurally
+  similar object.
 
-A primitive descriptor may be registered with more than one kernel. A kernel accepts only proposals whose originating descriptor is registered and authorized by its own composition.
+A primitive descriptor may be registered with more than one kernel. A kernel
+accepts only proposals whose originating descriptor is registered and authorized
+by its own composition.
 
 ## Current primitives
 
-All current primitives have synchronous contracts. Defining or combining them does not produce side effects by itself.
+All current primitives have synchronous contracts. Defining or combining them
+does not produce side effects by itself.
 
 ### Command
 
 A `command` describes an action that may be requested.
 
-It declares the accepted data and its structural validations. Policies determine whether the action may be accepted, and resolvers describe the events that are produced.
+It declares the accepted data and its structural validations. Policies determine
+whether the action may be accepted, and resolvers describe the events that are
+produced.
 
 ### Event
 
 An `event` describes something that happened in the system.
 
-It declares the identity and schema of that occurrence and provides an event constructor. The primitive does not execute the occurrence or produce its consequences.
+It declares the identity and schema of that occurrence and provides an event
+constructor. The primitive does not execute the occurrence or produce its
+consequences.
 
-Events are preserved in sequence. A change does not edit a previous event: it produces a new event that declares what happened.
+Events are preserved in sequence. A change does not edit a previous event: it
+produces a new event that declares what happened.
 
 ### Error
 
 An `error` declares an expected failure known to the system.
 
-Each failure has an explicit contract identifying why an action could not be performed.
+Each failure has an explicit contract identifying why an action could not be
+performed.
 
-A declared error represents an expected business rejection. An unexpected exception represents a technical failure in the application or Hyperkernel and is not part of the business contract.
+A declared error represents an expected business rejection. An unexpected
+exception represents a technical failure in the application or Hyperkernel and
+is not part of the business contract.
 
-Both a rejection and a technical failure interrupt the current execution and cause the transaction to roll back. Capturing and sending technical failures to an error reporter belongs to a future capability.
+Both a rejection and a technical failure interrupt the current execution and
+cause the transaction to roll back. Capturing and sending technical failures to
+an error reporter belongs to a future capability.
 
 ### Policy
 
 A `policy` declares a business decision based on the current state.
 
-A policy may declare its own input schema. It receives only the validated input required for its decision and the named results of one or more declared queries.
+A policy may declare its own input schema. It receives only the validated input
+required for its decision and the named results of one or more declared queries.
 
-Each policy declares exactly one error that represents its possible rejection. It returns `true` when its condition is satisfied or a runtime proposal for that error when the action must be rejected. Two distinct rejections require two distinct policies.
+Each policy declares exactly one error that represents its possible rejection.
+It returns `true` when its condition is satisfied or a runtime proposal for that
+error when the action must be rejected. Two distinct rejections require two
+distinct policies.
 
-A policy does not validate the structure of data, change state, or execute the action.
+A policy does not validate the structure of data, change state, or execute the
+action.
 
-A policy does not know or invoke other policies. Its only relationships are the input, queries, and error explicitly supplied to its own composition.
+A policy does not know or invoke other policies. Its only relationships are the
+input, queries, and error explicitly supplied to its own composition.
 
-The procedure binds validated command fields to the input of each policy. Each policy binds fields from its validated input to the inputs of its queries. These bindings may select or rename fields, but they must not contain business decisions or business calculations. The concrete API used to represent a binding remains open.
+The procedure binds validated command fields to the input of each policy. Each
+policy binds fields from its validated input to the inputs of its queries. These
+bindings may select or rename fields, but they must not contain business
+decisions or business calculations. The concrete API used to represent a binding
+remains open.
 
-A policy may omit its input schema when it has no input of its own. It may still decide from a declared query result, including the result of a query that also has no input.
+A policy may omit its input schema when it has no input of its own. It may still
+decide from a declared query result, including the result of a query that also
+has no input.
 
-Policies are evaluated when the system attempts to register new events. At that point, their queries observe the current state protected by SQLite's single-writer model.
+Policies are evaluated when the system attempts to register new events. At that
+point, their queries observe the current state protected by SQLite's
+single-writer model.
 
-When a procedure declares more than one policy, they are evaluated in declaration order. Evaluation stops at the first error, avoiding the execution of unnecessary policies and queries.
+When a procedure declares more than one policy, they are evaluated in
+declaration order. Evaluation stops at the first error, avoiding the execution
+of unnecessary policies and queries.
 
-If a policy rejects the action, none of the procedure's resolvers are executed and no event is registered.
+If a policy rejects the action, none of the procedure's resolvers are executed
+and no event is registered.
 
 ### Projection
 
-A `projection` defines an atomic read model and exclusively owns one or more declared SQLite structures.
+A `projection` defines an atomic read model and exclusively owns one or more
+declared SQLite structures.
 
-Each projection explicitly declares the registered event descriptors it accepts and exactly one synchronous transition for each accepted event. Events not declared by the projection do not affect it. Multiple projections may accept the same event.
+Each projection explicitly declares the registered event descriptors it accepts
+and exactly one synchronous transition for each accepted event. Events not
+declared by the projection do not affect it. Multiple projections may accept the
+same event.
 
-A transition determines the projection's next state from its current state and one materialized, validated event. It may read and modify only structures owned by that projection. It does not receive runtime capabilities, queries, other projections, the event log, the kernel, or the SQLite connection.
+A transition determines the projection's next state from its current state and
+one materialized, validated event. It may read and modify only structures owned
+by that projection. It does not receive runtime capabilities, queries, other
+projections, the event log, the kernel, or the SQLite connection.
 
-A transition may change multiple rows and multiple owned structures as one atomic update. It cannot make business decisions, reject an event, produce another event, or perform external effects.
+A transition may change multiple rows and multiple owned structures as one
+atomic update. It cannot make business decisions, reject an event, produce
+another event, or perform external effects.
 
-The projection declares its complete storage schema, including its tables, columns, constraints, and indexes. These structures are created during kernel initialization. Event transitions may change data but cannot create or alter the schema.
+The projection declares its complete storage schema, including its tables,
+columns, constraints, and indexes. These structures are created during kernel
+initialization. Event transitions may change data but cannot create or alter the
+schema.
 
-Queries declare their own result schemas independently. The projection's declared SQLite schema is its resulting storage format and is not a public query result contract.
+Queries declare their own result schemas independently. The projection's
+declared SQLite schema is its resulting storage format and is not a public query
+result contract.
 
-Committed events are applied to every accepting projection in event-log order. Event registration and all corresponding projection updates occur in the same procedure transaction. If any update fails, the event registration and every projection update are rolled back.
+Committed events are applied to every accepting projection in event-log order.
+Event registration and all corresponding projection updates occur in the same
+procedure transaction. If any update fails, the event registration and every
+projection update are rolled back.
 
-A projection can be rebuilt by recreating its owned structures and applying the same transitions to committed events in order. Therefore, transitions must be deterministic from the current projection state and the materialized event.
+A projection can be rebuilt by recreating its owned structures and applying the
+same transitions to committed events in order. Therefore, transitions must be
+deterministic from the current projection state and the materialized event.
 
-A projection does not need to reproduce a complete model or follow a traditional create, read, update, and delete structure.
+A projection does not need to reproduce a complete model or follow a traditional
+create, read, update, and delete structure.
 
-Different projections may exist for different read requirements even when they concern the same concept.
+Different projections may exist for different read requirements even when they
+concern the same concept.
 
 ### Query
 
 A `query` defines a read offered by the application.
 
-Each query explicitly declares one or more projection descriptors under local dependency names. These descriptor references, rather than projection-name strings, determine which read models the query is authorized to access. Every declared projection must be registered with the same kernel.
+Each query explicitly declares one or more projection descriptors under local
+dependency names. These descriptor references, rather than projection-name
+strings, determine which read models the query is authorized to access. Every
+declared projection must be registered with the same kernel.
 
-Declaring a projection authorizes the query to read the structures owned by that projection. A query may combine structures from multiple declared projections, but it cannot read undeclared projections, the event log, SQLite metadata, temporary structures, or internal Hyperkernel structures.
+Declaring a projection authorizes the query to read the structures owned by that
+projection. A query may combine structures from multiple declared projections,
+but it cannot read undeclared projections, the event log, SQLite metadata,
+temporary structures, or internal Hyperkernel structures.
 
-The query definition is the only boundary that needs to understand the storage schemas of its projections. Consumers depend only on the query descriptor, its input schema, and its result schema.
+The query definition is the only boundary that needs to understand the storage
+schemas of its projections. Consumers depend only on the query descriptor, its
+input schema, and its result schema.
 
-Each query declares exactly one static, parameterized SQL statement. Runtime values are supplied only through bound parameters and cannot construct SQL identifiers, fragments, clauses, or additional statements.
+Each query declares exactly one static, parameterized SQL statement. Runtime
+values are supplied only through bound parameters and cannot construct SQL
+identifiers, fragments, clauses, or additional statements.
 
-Hyperkernel prepares and validates the statement using SQLite's execution metadata or authorization facilities. The statement may perform reads, including joins, common table expressions, subqueries, aggregates, and window functions. It cannot mutate data or schemas, control transactions, execute pragmas, attach databases, or create temporary structures. SQL text inspection alone is not considered sufficient enforcement.
+Hyperkernel prepares and validates the statement using SQLite's execution
+metadata or authorization facilities. The statement may perform reads, including
+joins, common table expressions, subqueries, aggregates, and window functions.
+It cannot mutate data or schemas, control transactions, execute pragmas, attach
+databases, or create temporary structures. SQL text inspection alone is not
+considered sufficient enforcement.
 
-Queries do not receive the SQLite connection. Hyperkernel executes them through a restricted read capability that exposes only the structures owned by their declared projection dependencies. An unauthorized read or non-read-only statement is an invalid composition or technical failure, not a business rejection.
+Queries do not receive the SQLite connection. Hyperkernel executes them through
+a restricted read capability that exposes only the structures owned by their
+declared projection dependencies. An unauthorized read or non-read-only
+statement is an invalid composition or technical failure, not a business
+rejection.
 
-Bindings between commands, policies, and queries use a declarative field-mapping representation rather than callbacks. A binding may select fields, rename them, and construct the destination input structure. It cannot calculate values, make decisions, call arbitrary functions, access runtime capabilities, or read ambient state. The resulting value is validated by the destination primitive's independent input schema.
+Bindings between commands, policies, and queries use a declarative field-mapping
+representation rather than callbacks. A binding may select fields, rename them,
+and construct the destination input structure. It cannot calculate values, make
+decisions, call arbitrary functions, access runtime capabilities, or read
+ambient state. The resulting value is validated by the destination primitive's
+independent input schema.
 
-A query may omit its input schema when no parameters are required. Omission means that the query accepts no input.
+A query may omit its input schema when no parameters are required. Omission
+means that the query accepts no input.
 
-A standalone query observes the latest committed projection state. When a query belongs to a procedure, it executes synchronously through the procedure's existing connection and transaction and observes the state from before that procedure's events are appended.
+A standalone query observes the latest committed projection state. When a query
+belongs to a procedure, it executes synchronously through the procedure's
+existing connection and transaction and observes the state from before that
+procedure's events are appended.
 
-Every query result is fully materialized and validated before leaving the query boundary. Statements, cursors, lazy iterators, projection capabilities, and SQLite connection references never escape.
+Every query result is fully materialized and validated before leaving the query
+boundary. Statements, cursors, lazy iterators, projection capabilities, and
+SQLite connection references never escape.
 
 ### Procedure
 
@@ -327,17 +511,23 @@ Each procedure:
 - Receives zero or more policies.
 - Receives one or more resolvers.
 
-The absence of policies means that the feature requires no business decision based on current state. Structural validation of the command remains mandatory.
+The absence of policies means that the feature requires no business decision
+based on current state. Structural validation of the command remains mandatory.
 
-The complete execution of a procedure forms a single atomic operation within a transaction. Policy evaluation, required queries, resolver execution, event registration, and projection updates belong to the same unit of work.
+The complete execution of a procedure forms a single atomic operation within a
+transaction. Policy evaluation, required queries, resolver execution, event
+registration, and projection updates belong to the same unit of work.
 
-Policies and resolvers observe a single consistent state protected by SQLite's exclusive write access. No other write may be interleaved during this execution.
+Policies and resolvers observe a single consistent state protected by SQLite's
+exclusive write access. No other write may be interleaved during this execution.
 
-If any part fails, the transaction is rolled back and none of the events or state produced by the procedure is preserved.
+If any part fails, the transaction is rolled back and none of the events or
+state produced by the procedure is preserved.
 
 #### Resolver
 
-A resolver is not an independent primitive. It is a function declared as part of a procedure.
+A resolver is not an independent primitive. It is a function declared as part of
+a procedure.
 
 Each resolver:
 
@@ -345,130 +535,246 @@ Each resolver:
 - May declare a dependency on one or more queries.
 - Receives the results of those queries.
 - Declares exactly one event descriptor that it is permitted to produce.
-- May perform pure calculations required to construct the payload of its declared event.
+- May perform pure calculations required to construct the payload of its
+  declared event.
 - Returns exactly one runtime proposal for that event.
 - Returns only the event proposal, without changing state or producing effects.
 
-A procedure may have more than one resolver. The system processes resolvers in the order in which they were declared and creates their events in the same order.
+A procedure may have more than one resolver. The system processes resolvers in
+the order in which they were declared and creates their events in the same
+order.
 
-This order guarantees a deterministic registration sequence, but it does not represent a causal dependency between events. The application must not use a resolver's position to express that its event depends on another.
+This order guarantees a deterministic registration sequence, but it does not
+represent a causal dependency between events. The application must not use a
+resolver's position to express that its event depends on another.
 
-Policies authorize an attempt to execute the procedure. A later technical failure may interrupt resolver execution and causes the entire transaction to roll back.
+Policies authorize an attempt to execute the procedure. A later technical
+failure may interrupt resolver execution and causes the entire transaction to
+roll back.
 
-A procedure is accepted only after every resolver has produced and validated exactly one event proposal, every event and projection update has succeeded, and the transaction has committed. A committed procedure has no partial result, optional resolver, or eventless result.
+A procedure is accepted only after every resolver has produced and validated
+exactly one event proposal, every event and projection update has succeeded, and
+the transaction has committed. A committed procedure has no partial result,
+optional resolver, or eventless result.
 
 #### Command execution result
 
-Executing a command returns synchronously with one of three expected outcomes: structurally invalid input, a declared business rejection, or a committed procedure. Unexpected technical failures are thrown rather than represented as command outcomes.
+Executing a command returns synchronously with one of three expected outcomes:
+structurally invalid input, a declared business rejection, or a committed
+procedure. Unexpected technical failures are thrown rather than represented as
+command outcomes.
 
-Structurally invalid command input returns an `invalid` result containing a normalized list of validation issues. Each issue identifies a stable validation code, its path within the command input, and a human-readable message. Hyperkernel does not expose the validation library's native error representation.
+Structurally invalid command input returns an `invalid` result containing a
+normalized list of validation issues. Each issue identifies a stable validation
+code, its path within the command input, and a human-readable message.
+Hyperkernel does not expose the validation library's native error
+representation.
 
-Command validation occurs before a transaction begins. Invalid input does not execute policies, queries, resolvers, runtime capabilities, events, or projection updates. Structural validation issues are not declared business errors and do not use error descriptors.
+Command validation occurs before a transaction begins. Invalid input does not
+execute policies, queries, resolvers, runtime capabilities, events, or
+projection updates. Structural validation issues are not declared business
+errors and do not use error descriptors.
 
-When a policy rejects the command, execution returns a `rejected` result containing the materialized and validated value produced by that policy's declared error descriptor. The error preserves its descriptor identity and payload. It is returned only after the transaction has rolled back and is not committed to the event log.
+When a policy rejects the command, execution returns a `rejected` result
+containing the materialized and validated value produced by that policy's
+declared error descriptor. The error preserves its descriptor identity and
+payload. It is returned only after the transaction has rolled back and is not
+committed to the event log.
 
-A declared business rejection is an expected result and is not thrown as an exception.
+A declared business rejection is an expected result and is not thrown as an
+exception.
 
-A procedure returns `committed` only after every resolver has produced its declared event, every event has been materialized and validated, every event and projection update has succeeded, and SQLite has committed the transaction.
+A procedure returns `committed` only after every resolver has produced its
+declared event, every event has been materialized and validated, every event and
+projection update has succeeded, and SQLite has committed the transaction.
 
-A committed result contains no event payload or projection state. Commands represent mutations, while queries provide the application's read contracts. A caller may execute a query immediately after receiving `committed` and observe the resulting state.
+A committed result contains no event payload or projection state. Commands
+represent mutations, while queries provide the application's read contracts. A
+caller may execute a query immediately after receiving `committed` and observe
+the resulting state.
 
-An unexpected technical failure causes the current transaction to roll back and is then thrown synchronously as a Hyperkernel execution error. Technical failures include invalid internal contract values, unauthorized runtime proposals, query-result validation failures, event validation failures, projection failures, SQLite failures, and commit failures.
+An unexpected technical failure causes the current transaction to roll back and
+is then thrown synchronously as a Hyperkernel execution error. Technical
+failures include invalid internal contract values, unauthorized runtime
+proposals, query-result validation failures, event validation failures,
+projection failures, SQLite failures, and commit failures.
 
-Technical failures preserve their original cause for infrastructure logging but are not represented as declared business errors. Transport adapters must not expose internal causes, SQLite details, or stack traces directly to clients.
+Technical failures preserve their original cause for infrastructure logging but
+are not represented as declared business errors. Transport adapters must not
+expose internal causes, SQLite details, or stack traces directly to clients.
 
-Invalid kernel composition remains an initialization failure and prevents command execution entirely.
+Invalid kernel composition remains an initialization failure and prevents
+command execution entirely.
 
 ## Runtime capabilities
 
-A runtime capability is a frozen, process-local infrastructure contract created through a Hyperkernel factory. It declares a unique name, an optional Zod input schema, a Zod output schema, and a materialization policy. Runtime capabilities are not business primitives.
+A runtime capability is a frozen, process-local infrastructure contract created
+through a Hyperkernel factory. It declares a unique name, an optional Zod input
+schema, a Zod output schema, and a materialization policy. Runtime capabilities
+are not business primitives.
 
-Capability input and output types are inferred from their Zod schemas. Object identity is authoritative, while the declared name exists for diagnostics and composition validation.
+Capability input and output types are inferred from their Zod schemas. Object
+identity is authoritative, while the declared name exists for diagnostics and
+composition validation.
 
 ### Providers and kernel registration
 
-Capability definition is separate from implementation. When creating a kernel, the application binds each capability descriptor to a synchronous provider. Different kernels may provide different implementations for the same descriptor, allowing production and tests to use different environmental sources.
+Capability definition is separate from implementation. When creating a kernel,
+the application binds each capability descriptor to a synchronous provider.
+Different kernels may provide different implementations for the same descriptor,
+allowing production and tests to use different environmental sources.
 
-A provider receives only its validated capability input and returns a concrete value that is validated against the capability's output schema. It does not receive the kernel or SQLite connection. It may access only the ambient API that its capability exists to encapsulate and must perform short, bounded, local work.
+A provider receives only its validated capability input and returns a concrete
+value that is validated against the capability's output schema. It does not
+receive the kernel or SQLite connection. It may access only the ambient API that
+its capability exists to encapsulate and must perform short, bounded, local
+work.
 
-Runtime capabilities are always synchronous. A provider cannot return a `Promise`, thenable, asynchronous iterator, stream, or pending operation. This synchrony is part of the runtime capability contract rather than only a constraint of the first implementation because capability materialization may occur inside a SQLite transaction.
+Runtime capabilities are always synchronous. A provider cannot return a
+`Promise`, thenable, asynchronous iterator, stream, or pending operation. This
+synchrony is part of the runtime capability contract rather than only a
+constraint of the first implementation because capability materialization may
+occur inside a SQLite transaction.
 
-Hyperkernel rejects invalid capability descriptors, duplicate capability names, duplicate providers, dependencies without providers, and asynchronous providers during kernel initialization whenever the violation can be detected eagerly. If a provider returns a promise-like value during materialization, execution fails with a technical error and the current transaction rolls back. An exception or output-validation failure from a provider is also a technical failure.
+Hyperkernel rejects invalid capability descriptors, duplicate capability names,
+duplicate providers, dependencies without providers, and asynchronous providers
+during kernel initialization whenever the violation can be detected eagerly. If
+a provider returns a promise-like value during materialization, execution fails
+with a technical error and the current transaction rolls back. An exception or
+output-validation failure from a provider is also a technical failure.
 
-Network access, asynchronous storage, waiting, retries, and external interactions do not belong to runtime capabilities. They require an effect, a workflow, a future explicit external-read contract, resolution before kernel execution, or inclusion in the command input when the value belongs to the request.
+Network access, asynchronous storage, waiting, retries, and external
+interactions do not belong to runtime capabilities. They require an effect, a
+workflow, a future explicit external-read contract, resolution before kernel
+execution, or inclusion in the command input when the value belongs to the
+request.
 
 ### Primitive capability access
 
-A capability-aware contract explicitly declares a named mapping of the capabilities available to it. This mapping both declares each dependency and determines the exact capability access visible to its handler. A separate duplicate dependency list is not required.
+A capability-aware contract explicitly declares a named mapping of the
+capabilities available to it. This mapping both declares each dependency and
+determines the exact capability access visible to its handler. A separate
+duplicate dependency list is not required.
 
-A capability may be supplied as a materialized input or as a deferred reference capability.
+A capability may be supplied as a materialized input or as a deferred reference
+capability.
 
-A materialized input is resolved and validated by the kernel before the handler executes. The handler receives the concrete output and may use it in its pure calculation or decision.
+A materialized input is resolved and validated by the kernel before the handler
+executes. The handler receives the concrete output and may use it in its pure
+calculation or decision.
 
-A deferred reference capability creates an opaque `CapabilityReference` that may be included in a query description, event proposal, or error proposal. Application code cannot inspect or resolve the reference.
+A deferred reference capability creates an opaque `CapabilityReference` that may
+be included in a query description, event proposal, or error proposal.
+Application code cannot inspect or resolve the reference.
 
-A primitive cannot access undeclared capabilities, provider implementations, the complete capability registry, the kernel, or the SQLite connection. Projections receive only materialized, validated events and do not receive runtime capabilities.
+A primitive cannot access undeclared capabilities, provider implementations, the
+complete capability registry, the kernel, or the SQLite connection. Projections
+receive only materialized, validated events and do not receive runtime
+capabilities.
 
 ### Capability references
 
-A capability reference is a frozen, opaque, process-local value created through a registered capability. Hyperkernel stores its capability identity, validated input, materialization policy, and reference identity in a private `WeakMap`.
+A capability reference is a frozen, opaque, process-local value created through
+a registered capability. Hyperkernel stores its capability identity, validated
+input, materialization policy, and reference identity in a private `WeakMap`.
 
-A structurally similar value is not a valid capability reference. References cannot be inspected, directly materialized, serialized, persisted, or used as concrete capability values.
+A structurally similar value is not a valid capability reference. References
+cannot be inspected, directly materialized, serialized, persisted, or used as
+concrete capability values.
 
-The kernel accepts only references created by capabilities registered with the executing kernel and explicitly authorized for the current contract. Every reference is materialized before final schema validation and persistence. Capability references never reach the event log or projection handlers.
+The kernel accepts only references created by capabilities registered with the
+executing kernel and explicitly authorized for the current contract. Every
+reference is materialized before final schema validation and persistence.
+Capability references never reach the event log or projection handlers.
 
 ### Materialization policies
 
 The first implementation supports `execution` and `reference` materialization.
 
-An `execution` capability is materialized at most once during one command or standalone query execution. Every dependency and reference to that capability receives the same validated value. The value is not reused across executions. Execution-scoped capabilities accept no input in the first implementation.
+An `execution` capability is materialized at most once during one command or
+standalone query execution. Every dependency and reference to that capability
+receives the same validated value. The value is not reused across executions.
+Execution-scoped capabilities accept no input in the first implementation.
 
-A `reference` capability is materialized once for each distinct reference. Reusing the same reference produces the same value, while creating separate references produces separately materialized values. References are processed in deterministic encounter order.
+A `reference` capability is materialized once for each distinct reference.
+Reusing the same reference produces the same value, while creating separate
+references produces separately materialized values. References are processed in
+deterministic encounter order.
 
-No input-keyed, kernel-global, or additional caching policy is introduced until a concrete use case requires it.
+No input-keyed, kernel-global, or additional caching policy is introduced until
+a concrete use case requires it.
 
 ### Materialization
 
-Capability materialization is demand-driven. Each dependency or reference is resolved according to its declared policy and is replaced with its concrete value before that value is consumed. Materialization occurs in stages inside the procedure transaction:
+Capability materialization is demand-driven. Each dependency or reference is
+resolved according to its declared policy and is replaced with its concrete
+value before that value is consumed. Materialization occurs in stages inside the
+procedure transaction:
 
 1. Validate the command input.
 2. Begin the transaction and establish the consistent state for the procedure.
 3. Build and validate policy inputs.
 4. Materialize capabilities required by policy queries and decisions.
-5. Execute policies in declaration order. If a policy rejects the command, materialize and validate its error proposal, roll back, and return the rejection.
-6. Materialize capabilities required by resolver queries and execute those queries against the same consistent state.
+5. Execute policies in declaration order. If a policy rejects the command,
+   materialize and validate its error proposal, roll back, and return the
+   rejection.
+6. Materialize capabilities required by resolver queries and execute those
+   queries against the same consistent state.
 7. Materialize resolver inputs that require concrete capability values.
 8. Execute the resolvers and collect their event proposals.
 9. Materialize capability references contained in those event proposals.
 10. Validate every concrete event payload.
 11. Append the events, update the projections, and commit the transaction.
 
-Invalid command input materializes nothing. Capabilities required only by resolvers or events are not materialized when a policy rejects the procedure. A standalone query creates its own execution scope and observes the latest committed projection state.
+Invalid command input materializes nothing. Capabilities required only by
+resolvers or events are not materialized when a policy rejects the procedure. A
+standalone query creates its own execution scope and observes the latest
+committed projection state.
 
-After execution commits, rejects, or fails, the kernel discards the execution scope, including its references and materialization caches. Concrete values already included in committed events or in a returned business rejection remain only as immutable materialized data. Runtime capability references and provider state never reach the event log or public result.
+After execution commits, rejects, or fails, the kernel discards the execution
+scope, including its references and materialization caches. Concrete values
+already included in committed events or in a returned business rejection remain
+only as immutable materialized data. Runtime capability references and provider
+state never reach the event log or public result.
 
 ### Transactional clock
 
-The transactional clock is an ordinary runtime capability using the `execution` materialization policy.
+The transactional clock is an ordinary runtime capability using the `execution`
+materialization policy.
 
-Every clock dependency and reference used during the same command or standalone query execution resolves to the same transactional time. The kernel invokes the clock provider once at first demand and reuses its validated value for the remainder of that execution. A later execution materializes a separate time value.
+Every clock dependency and reference used during the same command or standalone
+query execution resolves to the same transactional time. The kernel invokes the
+clock provider once at first demand and reuses its validated value for the
+remainder of that execution. A later execution materializes a separate time
+value.
 
-The clock provider is never invoked during descriptor definition or kernel initialization. Runtime capabilities provide the explicit architectural path for environmental values, but JavaScript may still access ambient APIs such as `Date.now()` directly. Avoiding that path remains an architectural rule reinforced by tooling, reduced Deno permissions, and review.
+The clock provider is never invoked during descriptor definition or kernel
+initialization. Runtime capabilities provide the explicit architectural path for
+environmental values, but JavaScript may still access ambient APIs such as
+`Date.now()` directly. Avoiding that path remains an architectural rule
+reinforced by tooling, reduced Deno permissions, and review.
 
 ## Future capabilities
 
-The capabilities in this section have been identified but are not part of the first implementation. Their contracts remain open until a concrete use case requires each one.
+The capabilities in this section have been identified but are not part of the
+first implementation. Their contracts remain open until a concrete use case
+requires each one.
 
 ### Derive
 
-A `derive` is a candidate future primitive for a named, pure business calculation with explicit input and output schemas.
+A `derive` is a candidate future primitive for a named, pure business
+calculation with explicit input and output schemas.
 
 Business calculations have two different temporal roles:
 
-- A value that was part of what happened must be calculated before the event is registered and persisted in the event payload.
-- A value that represents a current interpretation of history may be calculated by a projection and rebuilt from the event log.
+- A value that was part of what happened must be calculated before the event is
+  registered and persisted in the event payload.
+- A value that represents a current interpretation of history may be calculated
+  by a projection and rebuilt from the event log.
 
-Until a separate primitive is justified, a resolver may perform pure calculations required to construct its event payload, and a projection may calculate state intended only for reading.
+Until a separate primitive is justified, a resolver may perform pure
+calculations required to construct its event payload, and a projection may
+calculate state intended only for reading.
 
 The `derive` primitive should be introduced only when a concrete calculation:
 
@@ -476,17 +782,23 @@ The `derive` primitive should be introduced only when a concrete calculation:
 - Is reused by more than one resolver or projection.
 - Needs an explicit input and output contract.
 - Deserves independent tests or inspection.
-- Or needs to be used both before an event is registered and while a projection is rebuilt.
+- Or needs to be used both before an event is registered and while a projection
+  is rebuilt.
 
-A derive would calculate and return a validated value. It would not accept or reject an action, return an error, produce an event, execute a query, or access infrastructure. A calculation that can reject an action belongs to a policy instead.
+A derive would calculate and return a validated value. It would not accept or
+reject an action, return an error, produce an event, execute a query, or access
+infrastructure. A calculation that can reject an action belongs to a policy
+instead.
 
 ### Workflow
 
 A `workflow` will probably coordinate multiple procedures.
 
-It may represent a multi-step flow in which one procedure depends on the result of another or must wait for another occurrence before proceeding.
+It may represent a multi-step flow in which one procedure depends on the result
+of another or must wait for another occurrence before proceeding.
 
-This responsibility does not belong to an individual procedure or to the current resolvers. The task application does not have this requirement.
+This responsibility does not belong to an individual procedure or to the current
+resolvers. The task application does not have this requirement.
 
 ### Effect
 
@@ -496,21 +808,29 @@ It may:
 
 - Declare the external work it intends to perform.
 - Use policies to determine whether that work may proceed.
-- Return an event when the work is performed or a declared error when it cannot be completed.
+- Return an event when the work is performed or a declared error when it cannot
+  be completed.
 
-The API, execution timing, and delivery, repetition, and recovery guarantees have not yet been defined. The task application has no external effects.
+The API, execution timing, and delivery, repetition, and recovery guarantees
+have not yet been defined. The task application has no external effects.
 
 ### Durability of rejected commands
 
-In the future, the system may keep a durable record of received commands, including those that were rejected or interrupted by a failure.
+In the future, the system may keep a durable record of received commands,
+including those that were rejected or interrupted by a failure.
 
-This capability is not part of the current event log and is not required for the first implementation.
+This capability is not part of the current event log and is not required for the
+first implementation.
 
 ### Technical failure reporting
 
-In the future, unexpected exceptions may be captured and sent to an error reporter.
+In the future, unexpected exceptions may be captured and sent to an error
+reporter.
 
-The reporting mechanism, its configuration, and its delivery guarantees remain out of scope. In the first implementation, the required guarantee is that a technical failure rolls back the transaction and is not represented as a business error.
+The reporting mechanism, its configuration, and its delivery guarantees remain
+out of scope. In the first implementation, the required guarantee is that a
+technical failure rolls back the transaction and is not represented as a
+business error.
 
 ## Technical constraints of the first implementation
 
@@ -518,38 +838,65 @@ The reporting mechanism, its configuration, and its delivery guarantees remain o
 
 The first implementation uses Deno as its JavaScript runtime.
 
-The back end, primitives, SQLite access, checks, and executable examples must work in the environment provided by Deno.
+The back end, primitives, SQLite access, checks, and executable examples must
+work in the environment provided by Deno.
 
-Implementation decisions should prefer capabilities available in the runtime itself and avoid introducing tools or dependencies that are not required to validate the architecture.
+Implementation decisions should prefer capabilities available in the runtime
+itself and avoid introducing tools or dependencies that are not required to
+validate the architecture.
 
 ### Independent schemas, runtime validation, and type inference
 
-The first implementation uses Zod as its runtime schema system. Commands, policies, queries, events, and errors declare Zod schemas at their respective contract boundaries.
+The first implementation uses Zod as its runtime schema system. Commands,
+policies, queries, events, and errors declare Zod schemas at their respective
+contract boundaries.
 
-Each contract owns its schemas independently of every other contract. A command input schema, policy input schema, query input schema, query result schema, event payload schema, and error payload schema remain separate contracts even when they contain fields with the same names or types.
+Each contract owns its schemas independently of every other contract. A command
+input schema, policy input schema, query input schema, query result schema,
+event payload schema, and error payload schema remain separate contracts even
+when they contain fields with the same names or types.
 
-Descriptor factories infer their public TypeScript types from the supplied schemas whenever those types can be derived from the schema. Application code should not maintain a separate manually declared TypeScript type for a value already defined by a Zod schema.
+Descriptor factories infer their public TypeScript types from the supplied
+schemas whenever those types can be derived from the schema. Application code
+should not maintain a separate manually declared TypeScript type for a value
+already defined by a Zod schema.
 
-For a schema `S`, `z.input<S>` represents the value accepted before parsing and `z.output<S>` represents the validated value produced after parsing. Consumers of a validated contract boundary receive its output type.
+For a schema `S`, `z.input<S>` represents the value accepted before parsing and
+`z.output<S>` represents the validated value produced after parsing. Consumers
+of a validated contract boundary receive its output type.
 
-Runtime proposals may additionally accept registered capability-reference types in positions that will be materialized before final validation. After materialization, the concrete payload must satisfy the originating schema's output contract.
+Runtime proposals may additionally accept registered capability-reference types
+in positions that will be materialized before final validation. After
+materialization, the concrete payload must satisfy the originating schema's
+output contract.
 
-Type inference provides compile-time guidance but does not replace runtime validation. The Zod schema remains authoritative whenever an unknown value crosses a contract boundary.
+Type inference provides compile-time guidance but does not replace runtime
+validation. The Zod schema remains authoritative whenever an unknown value
+crosses a contract boundary.
 
 Values are validated whenever they cross a contract boundary:
 
 - A command validates its input before a procedure is executed.
-- The output of a command-to-policy binding is validated by the policy input schema.
-- The output of a policy-to-query binding is validated by the query input schema.
+- The output of a command-to-policy binding is validated by the policy input
+  schema.
+- The output of a policy-to-query binding is validated by the query input
+  schema.
 - A query result is validated before it is supplied to a policy or resolver.
 - A runtime proposal is checked for provenance and permitted descriptors.
-- An event payload is validated against its final schema after all capability references have been materialized and before the event is appended.
+- An event payload is validated against its final schema after all capability
+  references have been materialized and before the event is appended.
 
-Zod capabilities such as `transform` and `refine` may perform structural normalization, establish canonical representations, and enforce invariants belonging to the value being validated. A binding must not use normalization as a place to hide a business decision or business calculation.
+Zod capabilities such as `transform` and `refine` may perform structural
+normalization, establish canonical representations, and enforce invariants
+belonging to the value being validated. A binding must not use normalization as
+a place to hide a business decision or business calculation.
 
-An explicit TypeScript type may supplement a contract only when the required relationship cannot be derived from its Zod schemas. It cannot replace the runtime schema.
+An explicit TypeScript type may supplement a contract only when the required
+relationship cannot be derived from its Zod schemas. It cannot replace the
+runtime schema.
 
-When an input schema is omitted, the primitive accepts no input. Omission does not mean an unknown or unrestricted input.
+When an input schema is omitted, the primitive accepts no input. Omission does
+not mean an unknown or unrestricted input.
 
 ### Back-end scope
 
@@ -565,39 +912,61 @@ It includes:
 - SQLite validation, consistency, and isolation guarantees.
 - Implementation of the To Do App features required to exercise these contracts.
 
-The front end is outside the scope of this phase. After the back end is complete and the architecture's contracts have been evaluated, an example front end will be created to demonstrate the application.
+The front end is outside the scope of this phase. After the back end is complete
+and the architecture's contracts have been evaluated, an example front end will
+be created to demonstrate the application.
 
 ### SQLite
 
-SQLite is part of the architecture of the first implementation and is not treated merely as a replaceable storage detail.
+SQLite is part of the architecture of the first implementation and is not
+treated merely as a replaceable storage detail.
 
-The system must take advantage of its guarantees and respect its operational constraints.
+The system must take advantage of its guarantees and respect its operational
+constraints.
 
 #### Execution topology
 
 The kernel owns exactly one long-lived SQLite connection.
 
-Every procedure starts with `BEGIN IMMEDIATE` before executing any state-dependent query. This establishes the procedure as a write transaction before policies and resolvers inspect the current state. The procedure therefore does not begin as a reader and later attempt to acquire the writer after its decisions have already been made.
+Every procedure starts with `BEGIN IMMEDIATE` before executing any
+state-dependent query. This establishes the procedure as a write transaction
+before policies and resolvers inspect the current state. The procedure therefore
+does not begin as a reader and later attempt to acquire the writer after its
+decisions have already been made.
 
-All policy and resolver queries execute synchronously through the same connection and transaction. They observe the committed state that existed before the procedure started. Procedure queries finish before events are appended and projections are updated, so they do not observe state produced by the current procedure.
+All policy and resolver queries execute synchronously through the same
+connection and transaction. They observe the committed state that existed before
+the procedure started. Procedure queries finish before events are appended and
+projections are updated, so they do not observe state produced by the current
+procedure.
 
-Each query result is fully materialized and validated before it is supplied to a policy or resolver. Statements, cursors, lazy iterators, and references to the SQLite connection do not cross the query execution boundary or remain available after the query finishes.
+Each query result is fully materialized and validated before it is supplied to a
+policy or resolver. Statements, cursors, lazy iterators, and references to the
+SQLite connection do not cross the query execution boundary or remain available
+after the query finishes.
 
-A successful commit makes the resulting projection state visible to subsequent queries. A rollback preserves the state that existed before the procedure started.
+A successful commit makes the resulting projection state visible to subsequent
+queries. A rollback preserves the state that existed before the procedure
+started.
 
 #### Operational model
 
 - There is only one write at a time.
-- SQLite is used in memory, and its data exists only during the current execution.
+- SQLite is used in memory, and its data exists only during the current
+  execution.
 - Write operations must be short and deterministic.
 - The system does not depend on a separate database server.
-- The architecture does not attempt to simulate multiple simultaneous writes using queues, workers, or additional infrastructure.
+- The architecture does not attempt to simulate multiple simultaneous writes
+  using queues, workers, or additional infrastructure.
 
 #### Intended audience and scale
 
-The architecture is initially intended for applications used by one person, an independent developer, or a small organization of up to a few dozen people.
+The architecture is initially intended for applications used by one person, an
+independent developer, or a small organization of up to a few dozen people.
 
-In this context, SQLite reduces operational complexity and provides enough capacity for the expected volume. This suitability depends mainly on the frequency and duration of writes, not only on the number of users.
+In this context, SQLite reduces operational complexity and provides enough
+capacity for the expected volume. This suitability depends mainly on the
+frequency and duration of writes, not only on the number of users.
 
 #### Assumed benefits
 
@@ -616,7 +985,9 @@ In this context, SQLite reduces operational complexity and provides enough capac
 
 #### Decision boundary
 
-The choice should be reconsidered only if actual measurements show that serialized writes cannot support the required load or if the product begins to require multiple distributed writers.
+The choice should be reconsidered only if actual measurements show that
+serialized writes cannot support the required load or if the product begins to
+require multiple distributed writers.
 
 ### Synchronous execution
 
@@ -625,42 +996,58 @@ The entire flow of the first implementation is synchronous.
 - SQLite access is synchronous.
 - Queries return their results synchronously.
 - All current primitives are evaluated and composed synchronously.
-- No primitive returns a `Promise`, schedules work, or keeps an operation pending for later completion.
+- No primitive returns a `Promise`, schedules work, or keeps an operation
+  pending for later completion.
 - A procedure finishes only after all the work it orchestrates has finished.
 
 ### Composition validation
 
-Hyperkernel validates the composition of contracts eagerly, during assembly or initialization and before any command is processed.
+Hyperkernel validates the composition of contracts eagerly, during assembly or
+initialization and before any command is processed.
 
 This validation happens at runtime and rejects, at a minimum:
 
 - Duplicate primitive names.
 - References to primitives that have not been registered.
 - More than one procedure registered for the same command.
-- Other structural combinations that violate the boundaries declared by the primitives.
+- Other structural combinations that violate the boundaries declared by the
+  primitives.
 
-An invalid composition prevents the kernel from initializing instead of failing only when the corresponding feature is used.
+An invalid composition prevents the kernel from initializing instead of failing
+only when the corresponding feature is used.
 
 ### Strong consistency
 
-The state used for decisions and the state presented by projections follow a strong-consistency model.
+The state used for decisions and the state presented by projections follow a
+strong-consistency model.
 
 - Policies are evaluated when the system attempts to register new events.
-- The queries provided to policies read the latest state available at that moment.
-- No other write can be interleaved between the decision and the registration of events.
-- Policies, resolvers, event registration, and projection updates execute within the same transaction.
-- If any part fails, the transaction is rolled back and no event or partial update is preserved.
-- After the operation finishes, queries already reflect the state produced by the registered events.
+- The queries provided to policies read the latest state available at that
+  moment.
+- No other write can be interleaved between the decision and the registration of
+  events.
+- Policies, resolvers, event registration, and projection updates execute within
+  the same transaction.
+- If any part fails, the transaction is rolled back and no event or partial
+  update is preserved.
+- After the operation finishes, queries already reflect the state produced by
+  the registered events.
 
-The architecture does not allow an interval in which an event has been accepted but reads still present the previous state. Eventual consistency is outside the current model.
+The architecture does not allow an interval in which an event has been accepted
+but reads still present the previous state. Eventual consistency is outside the
+current model.
 
 ### No external effects
 
-The first application does not consult external services, send messages, trigger notifications, or start background work.
+The first application does not consult external services, send messages, trigger
+notifications, or start background work.
 
-Changes to SQLite are part of the internal state and are not classified here as external effects.
+Changes to SQLite are part of the internal state and are not classified here as
+external effects.
 
-The future effects layer will be responsible for external and asynchronous work. It must not be anticipated in the first implementation through queues, workers, retries, or asynchronous abstractions.
+The future effects layer will be responsible for external and asynchronous work.
+It must not be anticipated in the first implementation through queues, workers,
+retries, or asynchronous abstractions.
 
 ## Incremental evaluation method
 
@@ -676,20 +1063,27 @@ For each feature:
 6. Define how the procedure composes these contracts.
 7. Verify that each contract has a single responsibility.
 8. Identify any requirement that the current primitives cannot clearly express.
-9. Verify that the feature can be generated without accessing capabilities outside the declared contracts.
-10. Verify that a person can understand and review the logic through the resulting contracts.
+9. Verify that the feature can be generated without accessing capabilities
+   outside the declared contracts.
+10. Verify that a person can understand and review the logic through the
+    resulting contracts.
 11. Introduce or change only the smallest required capability.
 12. Implement and verify the increment before moving forward.
 
-A new primitive must not be created merely for symmetry or in anticipation of a future need. It must address a concrete need that cannot be clearly expressed with the existing contracts.
+A new primitive must not be created merely for symmetry or in anticipation of a
+future need. It must address a concrete need that cannot be clearly expressed
+with the existing contracts.
 
 ## Use case: minimal task application
 
 ### Role of the use case
 
-The To Do App provides small, observable, and progressive behaviors for exercising the architecture.
+The To Do App provides small, observable, and progressive behaviors for
+exercising the architecture.
 
-It is not intended to represent a complete product. Features such as authentication, collaboration, multiple lists, due dates, categories, notifications, and external integrations are not required for this evaluation.
+It is not intended to represent a complete product. Features such as
+authentication, collaboration, multiple lists, due dates, categories,
+notifications, and external integrations are not required for this evaluation.
 
 ### Application requirements
 
@@ -728,13 +1122,17 @@ Invalid state transitions are rejected explicitly by policies:
 - Reopening an already open task is rejected with `TaskAlreadyOpen`.
 - Moving a task to an invalid position is rejected with `InvalidTaskPosition`.
 
-Each policy evaluates the current state before any resolver is executed. A rejected command produces no event, causes no projection change, and returns its declared business error.
+Each policy evaluates the current state before any resolver is executed. A
+rejected command produces no event, causes no projection change, and returns its
+declared business error.
 
-The UI receives the structured rejection and decides how to present or handle it according to the interaction.
+The UI receives the structured rejection and decides how to present or handle it
+according to the interaction.
 
 #### Task identifier
 
-The client generates a UUID before requesting that a task be added. The person provides the task text, while the client constructs the complete command input:
+The client generates a UUID before requesting that a task be added. The person
+provides the task text, while the client constructs the complete command input:
 
 ```text
 AddTask {
@@ -743,13 +1141,19 @@ AddTask {
 }
 ```
 
-The command schema validates the UUID format. A policy verifies that the identifier is not already in use and declares `TaskAlreadyExists` as its only possible rejection. A uniqueness constraint in SQLite remains the final technical safeguard.
+The command schema validates the UUID format. A policy verifies that the
+identifier is not already in use and declares `TaskAlreadyExists` as its only
+possible rejection. A uniqueness constraint in SQLite remains the final
+technical safeguard.
 
-Submitting an existing UUID is an explicit rejection in the first implementation. Idempotency, command deduplication, and reprocessing of the same command will be decided when durable command recording is introduced.
+Submitting an existing UUID is an explicit rejection in the first
+implementation. Idempotency, command deduplication, and reprocessing of the same
+command will be decided when durable command recording is introduced.
 
 ## Use-case stages
 
-Each stage delivers a new, concrete use and serves as a unit for evaluating the architecture.
+Each stage delivers a new, concrete use and serves as a unit for evaluating the
+architecture.
 
 ### Stage 1 — Add tasks
 
@@ -797,7 +1201,8 @@ Each stage delivers a new, concrete use and serves as a unit for evaluating the 
 - The list presents the current state of each task.
 - The change affects only the selected task.
 
-**Delivered value:** a person can track what has been done and resume a task when necessary.
+**Delivered value:** a person can track what has been done and resume a task
+when necessary.
 
 ### Stage 5 — Delete tasks
 
@@ -805,19 +1210,23 @@ Each stage delivers a new, concrete use and serves as a unit for evaluating the 
 
 **Introduced guarantee:** the deleted task is no longer part of the list.
 
-**Delivered value:** a person can remove a task that should no longer remain in the list.
+**Delivered value:** a person can remove a task that should no longer remain in
+the list.
 
 ### Stage 6 — Reorder tasks
 
 **Behavior:** change a task's position in the list.
 
-**Introduced guarantee:** the list preserves the selected order during the current execution.
+**Introduced guarantee:** the list preserves the selected order during the
+current execution.
 
-**Delivered value:** a person can organize tasks in whichever order makes the most sense.
+**Delivered value:** a person can organize tasks in whichever order makes the
+most sense.
 
 ## Primitive assessment result
 
-The current primitives are sufficient to build every stage of the task application:
+The current primitives are sufficient to build every stage of the task
+application:
 
 - `command`
 - `event`
@@ -828,10 +1237,17 @@ The current primitives are sufficient to build every stage of the task applicati
 - `procedure`
 - resolver as a function belonging to a procedure
 
-The current use case does not require `effect` because it has no external interactions or asynchronous work. It also does not require `workflow` because no feature depends on causal coordination between multiple procedures.
+The current use case does not require `effect` because it has no external
+interactions or asynchronous work. It also does not require `workflow` because
+no feature depends on causal coordination between multiple procedures.
 
-No need for another primitive has been identified. The contracts required for the first implementation are sufficiently defined to begin incremental implementation.
+No need for another primitive has been identified. The contracts required for
+the first implementation are sufficiently defined to begin incremental
+implementation.
 
 ## Next step
 
-Begin Stage 1 by translating the resolved contracts into the smallest public TypeScript API and executable back end required to add a task. Implement and verify only the capabilities required by that stage before proceeding to the next use-case stage.
+Begin Stage 1 by translating the resolved contracts into the smallest public
+TypeScript API and executable back end required to add a task. Implement and
+verify only the capabilities required by that stage before proceeding to the
+next use-case stage.
