@@ -251,9 +251,23 @@ If a policy rejects the action, none of the procedure's resolvers are executed a
 
 ### Projection
 
-A `projection` defines an atomic data structure designed for reading.
+A `projection` defines an atomic read model and exclusively owns one or more declared SQLite structures.
 
-It processes registered events to determine the state required for a specific purpose. A projection does not need to reproduce a complete model or follow a traditional create, read, update, and delete structure.
+Each projection explicitly declares the registered event descriptors it accepts and exactly one synchronous transition for each accepted event. Events not declared by the projection do not affect it. Multiple projections may accept the same event.
+
+A transition determines the projection's next state from its current state and one materialized, validated event. It may read and modify only structures owned by that projection. It does not receive context, queries, other projections, the event log, the kernel, or the SQLite connection.
+
+A transition may change multiple rows and multiple owned structures as one atomic update. It cannot make business decisions, reject an event, produce another event, or perform external effects.
+
+The projection declares its complete storage schema, including its tables, columns, constraints, and indexes. These structures are created during kernel initialization. Event transitions may change data but cannot create or alter the schema.
+
+Queries declare their own result schemas independently. The projection's declared SQLite schema is its resulting storage format and is not a public query result contract.
+
+Committed events are applied to every accepting projection in event-log order. Event registration and all corresponding projection updates occur in the same procedure transaction. If any update fails, the event registration and every projection update are rolled back.
+
+A projection can be rebuilt by recreating its owned structures and applying the same transitions to committed events in order. Therefore, transitions must be deterministic from the current projection state and the materialized event.
+
+A projection does not need to reproduce a complete model or follow a traditional create, read, update, and delete structure.
 
 Different projections may exist for different read requirements even when they concern the same concept.
 
@@ -711,18 +725,7 @@ No need for another primitive has been identified. The outstanding matters are d
 
 These questions must be answered before the contracts of the first implementation can be considered complete.
 
-### 1. Projection update contract
-
-A projection processes events to determine its state, but its contract still needs to declare:
-
-- Which events it accepts.
-- How each event transforms its state.
-- Which structures it may change.
-- The resulting format.
-
-This outstanding matter should complete the `projection` primitive without creating a new primitive.
-
-### 2. Query execution and authorization contract
+### 1. Query execution and authorization contract
 
 A query now has independent input and result schemas, but its execution contract still needs to define:
 
@@ -733,7 +736,7 @@ A query now has independent input and result schemas, but its execution contract
 
 The semantic data flow is defined, but the choice between callbacks and a declarative binding representation remains open.
 
-### 3. Context public API
+### 2. Context public API
 
 The context semantics and transactional materialization phases are defined, but the public API still needs to determine:
 
@@ -741,14 +744,14 @@ The context semantics and transactional materialization phases are defined, but 
 - How primitives receive the parts of context available to them.
 - How materialization policies other than the transactional clock are represented.
 
-### 4. Descriptor representation
+### 3. Descriptor representation
 
 Primitive descriptor identity, runtime proposal opacity, and provenance validation are required. The concrete implementation still needs to determine:
 
 - Whether descriptor provenance uses object identity, private metadata, a `WeakMap`, or another mechanism.
 - How descriptors appear in the public API without exposing their internal representation.
 
-### 5. Command execution result
+### 4. Command execution result
 
 The public contract still needs to determine:
 
