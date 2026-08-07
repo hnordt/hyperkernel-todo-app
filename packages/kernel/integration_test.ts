@@ -2,39 +2,48 @@ import assert from "node:assert/strict";
 
 import { createKernel } from "./mod.ts";
 
-Deno.test("dispatch materializes and raises the configured events", () => {
+Deno.test("dispatch emits configured events from an in-memory transaction", () => {
   const kernel = createKernel({
-    schemas: {
-      Task: {
-        text: { type: "string" },
+    config: {
+      database: {
+        path: ":memory:",
       },
     },
-    commands: {
-      CreateTask: {
-        text: "Task.text",
-      },
-    },
-    events: {
-      TaskCreated: {
-        text: "Task.text",
-      },
-      TaskCreationRecorded: {
-        text: "Task.text",
-      },
-    },
-    procedures: {
-      TaskCreation: {
-        handle: {
-          CreateTask: {
-            text: "unsafe.text",
+    modules: {
+      Tasks: {
+        schemas: {
+          Task: {
+            text: { type: "string" },
           },
         },
-        raise: {
+        commands: {
+          CreateTask: {
+            text: "Task.text",
+          },
+        },
+        events: {
           TaskCreated: {
-            text: "command.text",
+            text: "Task.text",
           },
           TaskCreationRecorded: {
-            text: "command.text",
+            text: "Task.text",
+          },
+        },
+        procedures: {
+          TaskCreation: {
+            handle: {
+              CreateTask: {
+                text: "unsafe.text",
+              },
+            },
+            raise: {
+              TaskCreated: {
+                text: "command.text",
+              },
+              TaskCreationRecorded: {
+                text: "command.text",
+              },
+            },
           },
         },
       },
