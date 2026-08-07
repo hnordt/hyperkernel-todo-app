@@ -1,8 +1,5 @@
 {
   "name": "@hyperkernel/kernel",
   "version": "0.0.0",
-  "exports": "./mod.ts",
-  "imports": {
-    "zod": "npm:zod@^4.4.3"
-  }
+  "exports": "./mod.ts"
 }

@@ -1,8 +1,5 @@
 {
   "tasks": {
     "dev": "deno run --watch main.ts"
-  },
-  "imports": {
-    "zod": "npm:zod@^4.4.3"
   }
 }

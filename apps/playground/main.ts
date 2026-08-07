@@ -1,23 +1,37 @@
-import * as k from "@hyperkernel/kernel";
-import * as z from "zod";
+import { createKernel } from "@hyperkernel/kernel";
 
-const Task = z.strictObject({
-  text: z.string(),
+const kernel = createKernel({
+  schemas: {
+    Task: {
+      text: {
+        type: "string",
+      },
+    },
+  },
+  commands: {
+    CreateTask: {
+      text: "Task.text",
+    },
+  },
+  events: {
+    TaskCreated: {
+      text: "Task.text",
+    },
+  },
+  procedures: {
+    TaskCreation: {
+      handle: {
+        CreateTask: {
+          text: "unsafe.text",
+        },
+      },
+      raise: {
+        TaskCreated: {
+          text: "command.text",
+        },
+      },
+    },
+  },
 });
 
-const CreateTask = k.command("CreateTask", Task);
-
-const TaskCreated = k.event("TaskCreated", Task);
-
-const TaskCreation = k.procedure(
-  [CreateTask, {
-    text: "unsafe.text",
-  }],
-  [TaskCreated, {
-    text: "command.text",
-  }],
-);
-
-const kernel = k.kernel(TaskCreation);
-
-kernel.dispatch("CreateTask", { text: "Hello" });
+kernel.dispatch("CreateTask", { text: "Write documentation" });
