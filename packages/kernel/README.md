@@ -14,11 +14,13 @@ The current goal is to stabilize the public API. The implementation will be
 reviewed only after that API has been stabilized. Until then, behavior, types,
 and configuration may change without notice.
 
-The current public entry point is `createKernel(...definitions)`. It merges one
-or more definitions and returns a kernel with a typed
-`dispatch(commandType, input)` method. Conflicting Task, Command, Event, or
-Procedure names throw a `TypeError` during creation. `defineModule(definition)`
-type-checks a standalone definition while preserving its inferred literal types.
+The current public entry point is `createKernel({ config, modules })`. A
+database path is required. The factory opens the SQLite database, creates the
+`events` table, merges the named modules, and returns a kernel with a typed
+`dispatch(commandType, input)` method. Dispatch persists every emitted event in
+one transaction. Conflicting Task, Command, Event, or Procedure names throw a
+`TypeError` during creation. `defineModule(definition)` type-checks a standalone
+definition while preserving its inferred literal types.
 
 ```ts
 import { createKernel, defineModule } from "@hyperkernel/kernel";
@@ -55,7 +57,16 @@ const TaskManagement = defineModule({
   },
 });
 
-const kernel = createKernel(TaskManagement);
+const kernel = createKernel({
+  config: {
+    database: {
+      path: ":memory:",
+    },
+  },
+  modules: {
+    TaskManagement,
+  },
+});
 
 kernel.dispatch("CreateTask", { text: "Write documentation" });
 ```
