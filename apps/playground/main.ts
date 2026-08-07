@@ -1,37 +1,8 @@
 import { createKernel } from "@hyperkernel/kernel";
+import { Projects } from "./Projects.ts";
+import { Tasks } from "./Tasks.ts";
 
-const kernel = createKernel({
-  schemas: {
-    Task: {
-      text: {
-        type: "string",
-      },
-    },
-  },
-  commands: {
-    CreateTask: {
-      text: "Task.text",
-    },
-  },
-  events: {
-    TaskCreated: {
-      text: "Task.text",
-    },
-  },
-  procedures: {
-    TaskCreation: {
-      handle: {
-        CreateTask: {
-          text: "unsafe.text",
-        },
-      },
-      raise: {
-        TaskCreated: {
-          text: "command.text",
-        },
-      },
-    },
-  },
-});
+const kernel = createKernel(Projects, Tasks);
 
+kernel.dispatch("CreateProject", { name: "Hyperkernel" });
 kernel.dispatch("CreateTask", { text: "Write documentation" });

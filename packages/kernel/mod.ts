@@ -117,7 +117,7 @@ type ProcedureDescriptor<
   }>;
 }[Extract<keyof TCommands, string>];
 
-type KernelConfig<
+type ModuleDefinition<
   TSchemas extends SchemaRegistry,
   TCommands extends MessageRegistry<TSchemas>,
   TEvents extends MessageRegistry<TSchemas>,
@@ -174,6 +174,77 @@ type RuntimeProcedureDefinition = Readonly<{
   handle: Readonly<Record<string, RuntimeBindings>>;
   raise: Readonly<Record<string, RuntimeBindings>>;
 }>;
+
+type KernelDefinition = Readonly<{
+  schemas: SchemaRegistry;
+  commands: Readonly<Record<string, RuntimeMessageDefinition>>;
+  events: Readonly<Record<string, RuntimeMessageDefinition>>;
+  procedures: Readonly<Record<string, RuntimeProcedureDefinition>>;
+}>;
+
+type KernelDefinitions = readonly [KernelDefinition, ...KernelDefinition[]];
+
+type MergedRegistry<
+  TDefinitions extends KernelDefinitions,
+  TRegistry extends keyof KernelDefinition,
+> = Simplify<UnionToIntersection<TDefinitions[number][TRegistry]>>;
+
+type MergedSchemas<TDefinitions extends KernelDefinitions> = MergedRegistry<
+  TDefinitions,
+  "schemas"
+> extends infer TSchemas extends SchemaRegistry ? TSchemas : never;
+
+type MergedCommands<TDefinitions extends KernelDefinitions> = {
+  readonly [K in keyof MergedRegistry<TDefinitions, "commands">]:
+    MergedRegistry<TDefinitions, "commands">[K] extends MessageDefinition<
+      MergedSchemas<TDefinitions>
+    > ? MergedRegistry<TDefinitions, "commands">[K]
+      : never;
+};
+
+type MergedEvents<TDefinitions extends KernelDefinitions> = {
+  readonly [K in keyof MergedRegistry<TDefinitions, "events">]:
+    MergedRegistry<TDefinitions, "events">[K] extends MessageDefinition<
+      MergedSchemas<TDefinitions>
+    > ? MergedRegistry<TDefinitions, "events">[K]
+      : never;
+};
+
+type MergedProcedures<TDefinitions extends KernelDefinitions> = {
+  readonly [K in keyof MergedRegistry<TDefinitions, "procedures">]:
+    MergedRegistry<TDefinitions, "procedures">[K] extends ProcedureDescriptor<
+      MergedSchemas<TDefinitions>,
+      MergedCommands<TDefinitions>,
+      MergedEvents<TDefinitions>
+    > ? MergedRegistry<TDefinitions, "procedures">[K]
+      : never;
+};
+
+type RegistrySelection<TRegistry, TMergedRegistry> = {
+  readonly [K in keyof TRegistry]: K extends keyof TMergedRegistry
+    ? TMergedRegistry[K]
+    : never;
+};
+
+type ValidKernelDefinitions<TDefinitions extends KernelDefinitions> = {
+  readonly [K in keyof TDefinitions]: TDefinitions[K] extends KernelDefinition
+    ? Readonly<{
+      schemas: TDefinitions[K]["schemas"];
+      commands: RegistrySelection<
+        TDefinitions[K]["commands"],
+        MergedCommands<TDefinitions>
+      >;
+      events: RegistrySelection<
+        TDefinitions[K]["events"],
+        MergedEvents<TDefinitions>
+      >;
+      procedures: RegistrySelection<
+        TDefinitions[K]["procedures"],
+        MergedProcedures<TDefinitions>
+      >;
+    }>
+    : never;
+};
 
 type Kernel<
   TSchemas extends SchemaRegistry,
@@ -300,7 +371,49 @@ function materializeMessage(
   return message;
 }
 
-export function createKernel<
+function mergeRegistry<TValue>(
+  registries: readonly Readonly<Record<string, TValue>>[],
+  definitionType: "Task" | "Command" | "Event" | "Procedure",
+): Readonly<Record<string, TValue>> {
+  const merged: Record<string, TValue> = Object.create(null);
+
+  for (const registry of registries) {
+    for (const [name, definition] of Object.entries(registry)) {
+      if (Object.hasOwn(merged, name)) {
+        throw new TypeError(`${definitionType} conflict: ${name}`);
+      }
+
+      merged[name] = definition;
+    }
+  }
+
+  return merged;
+}
+
+function mergeDefinitions(
+  definitions: readonly KernelDefinition[],
+): KernelDefinition {
+  return {
+    schemas: mergeRegistry(
+      definitions.map((definition) => definition.schemas),
+      "Task",
+    ),
+    commands: mergeRegistry(
+      definitions.map((definition) => definition.commands),
+      "Command",
+    ),
+    events: mergeRegistry(
+      definitions.map((definition) => definition.events),
+      "Event",
+    ),
+    procedures: mergeRegistry(
+      definitions.map((definition) => definition.procedures),
+      "Procedure",
+    ),
+  };
+}
+
+export function defineModule<
   const TSchemas extends SchemaRegistry,
   const TCommands extends MessageRegistry<TSchemas>,
   const TEvents extends MessageRegistry<TSchemas>,
@@ -308,8 +421,27 @@ export function createKernel<
     Record<string, ProcedureDescriptor<TSchemas, TCommands, TEvents>>
   >,
 >(
-  config: KernelConfig<TSchemas, TCommands, TEvents, TProcedures>,
-): Kernel<TSchemas, TCommands, TProcedures> {
+  definition: ModuleDefinition<
+    TSchemas,
+    TCommands,
+    TEvents,
+    TProcedures
+  >,
+): ModuleDefinition<TSchemas, TCommands, TEvents, TProcedures> {
+  return definition;
+}
+
+export function createKernel<
+  const TDefinitions extends KernelDefinitions,
+>(
+  ...definitions: TDefinitions & ValidKernelDefinitions<TDefinitions>
+): Kernel<
+  MergedSchemas<TDefinitions>,
+  MergedCommands<TDefinitions>,
+  MergedProcedures<TDefinitions>
+> {
+  const config = mergeDefinitions(definitions);
+
   validateSchemas(config.schemas);
   validateMessageRegistry(config.schemas, config.commands);
   validateMessageRegistry(config.schemas, config.events);
@@ -331,7 +463,7 @@ export function createKernel<
       const procedure = definition as RuntimeProcedureDefinition;
       const commandTypes = Object.keys(procedure.handle).filter((type) =>
         Object.hasOwn(config.commands, type)
-      ) as Extract<keyof TCommands, string>[];
+      );
       const eventTypes = Object.keys(procedure.raise).filter((type) =>
         Object.hasOwn(config.events, type)
       );
@@ -397,8 +529,8 @@ export function createKernel<
   );
 
   return {
-    dispatch<TCommandType extends Extract<keyof TCommands, string>>(
-      type: TCommandType,
+    dispatch(
+      type: string,
       unsafeInput: unknown,
     ): void {
       for (const procedure of procedures) {
@@ -425,5 +557,9 @@ export function createKernel<
         }
       }
     },
-  };
+  } as Kernel<
+    MergedSchemas<TDefinitions>,
+    MergedCommands<TDefinitions>,
+    MergedProcedures<TDefinitions>
+  >;
 }
