@@ -1,3 +1,5 @@
+import { DatabaseSync } from "node:sqlite";
+
 type FieldSchema = Readonly<{
   type: "string";
 }>;
@@ -182,41 +184,47 @@ type KernelDefinition = Readonly<{
   procedures: Readonly<Record<string, RuntimeProcedureDefinition>>;
 }>;
 
-type KernelDefinitions = readonly [KernelDefinition, ...KernelDefinition[]];
+type KernelModules = Readonly<Record<string, KernelDefinition>>;
+
+type KernelConfig = Readonly<{
+  database: Readonly<{
+    path: string;
+  }>;
+}>;
 
 type MergedRegistry<
-  TDefinitions extends KernelDefinitions,
+  TModules extends KernelModules,
   TRegistry extends keyof KernelDefinition,
-> = Simplify<UnionToIntersection<TDefinitions[number][TRegistry]>>;
+> = Simplify<UnionToIntersection<TModules[keyof TModules][TRegistry]>>;
 
-type MergedSchemas<TDefinitions extends KernelDefinitions> = MergedRegistry<
-  TDefinitions,
+type MergedSchemas<TModules extends KernelModules> = MergedRegistry<
+  TModules,
   "schemas"
 > extends infer TSchemas extends SchemaRegistry ? TSchemas : never;
 
-type MergedCommands<TDefinitions extends KernelDefinitions> = {
-  readonly [K in keyof MergedRegistry<TDefinitions, "commands">]:
-    MergedRegistry<TDefinitions, "commands">[K] extends MessageDefinition<
-      MergedSchemas<TDefinitions>
-    > ? MergedRegistry<TDefinitions, "commands">[K]
+type MergedCommands<TModules extends KernelModules> = {
+  readonly [K in keyof MergedRegistry<TModules, "commands">]:
+    MergedRegistry<TModules, "commands">[K] extends MessageDefinition<
+      MergedSchemas<TModules>
+    > ? MergedRegistry<TModules, "commands">[K]
       : never;
 };
 
-type MergedEvents<TDefinitions extends KernelDefinitions> = {
-  readonly [K in keyof MergedRegistry<TDefinitions, "events">]:
-    MergedRegistry<TDefinitions, "events">[K] extends MessageDefinition<
-      MergedSchemas<TDefinitions>
-    > ? MergedRegistry<TDefinitions, "events">[K]
+type MergedEvents<TModules extends KernelModules> = {
+  readonly [K in keyof MergedRegistry<TModules, "events">]:
+    MergedRegistry<TModules, "events">[K] extends MessageDefinition<
+      MergedSchemas<TModules>
+    > ? MergedRegistry<TModules, "events">[K]
       : never;
 };
 
-type MergedProcedures<TDefinitions extends KernelDefinitions> = {
-  readonly [K in keyof MergedRegistry<TDefinitions, "procedures">]:
-    MergedRegistry<TDefinitions, "procedures">[K] extends ProcedureDescriptor<
-      MergedSchemas<TDefinitions>,
-      MergedCommands<TDefinitions>,
-      MergedEvents<TDefinitions>
-    > ? MergedRegistry<TDefinitions, "procedures">[K]
+type MergedProcedures<TModules extends KernelModules> = {
+  readonly [K in keyof MergedRegistry<TModules, "procedures">]:
+    MergedRegistry<TModules, "procedures">[K] extends ProcedureDescriptor<
+      MergedSchemas<TModules>,
+      MergedCommands<TModules>,
+      MergedEvents<TModules>
+    > ? MergedRegistry<TModules, "procedures">[K]
       : never;
 };
 
@@ -226,21 +234,21 @@ type RegistrySelection<TRegistry, TMergedRegistry> = {
     : never;
 };
 
-type ValidKernelDefinitions<TDefinitions extends KernelDefinitions> = {
-  readonly [K in keyof TDefinitions]: TDefinitions[K] extends KernelDefinition
+type ValidKernelModules<TModules extends KernelModules> = {
+  readonly [K in keyof TModules]: TModules[K] extends KernelDefinition
     ? Readonly<{
-      schemas: TDefinitions[K]["schemas"];
+      schemas: TModules[K]["schemas"];
       commands: RegistrySelection<
-        TDefinitions[K]["commands"],
-        MergedCommands<TDefinitions>
+        TModules[K]["commands"],
+        MergedCommands<TModules>
       >;
       events: RegistrySelection<
-        TDefinitions[K]["events"],
-        MergedEvents<TDefinitions>
+        TModules[K]["events"],
+        MergedEvents<TModules>
       >;
       procedures: RegistrySelection<
-        TDefinitions[K]["procedures"],
-        MergedProcedures<TDefinitions>
+        TModules[K]["procedures"],
+        MergedProcedures<TModules>
       >;
     }>
     : never;
@@ -432,22 +440,29 @@ export function defineModule<
 }
 
 export function createKernel<
-  const TDefinitions extends KernelDefinitions,
+  const TModules extends KernelModules,
 >(
-  ...definitions: TDefinitions & ValidKernelDefinitions<TDefinitions>
+  options: Readonly<{
+    config: KernelConfig;
+    modules: TModules & ValidKernelModules<TModules>;
+  }>,
 ): Kernel<
-  MergedSchemas<TDefinitions>,
-  MergedCommands<TDefinitions>,
-  MergedProcedures<TDefinitions>
+  MergedSchemas<TModules>,
+  MergedCommands<TModules>,
+  MergedProcedures<TModules>
 > {
-  const config = mergeDefinitions(definitions);
+  if (typeof options.config?.database?.path !== "string") {
+    throw new TypeError("Database path must be set");
+  }
 
-  validateSchemas(config.schemas);
-  validateMessageRegistry(config.schemas, config.commands);
-  validateMessageRegistry(config.schemas, config.events);
+  const kernelDefinition = mergeDefinitions(Object.values(options.modules));
 
-  const duplicateTypes = Object.keys(config.commands).filter((type) =>
-    Object.hasOwn(config.events, type)
+  validateSchemas(kernelDefinition.schemas);
+  validateMessageRegistry(kernelDefinition.schemas, kernelDefinition.commands);
+  validateMessageRegistry(kernelDefinition.schemas, kernelDefinition.events);
+
+  const duplicateTypes = Object.keys(kernelDefinition.commands).filter((type) =>
+    Object.hasOwn(kernelDefinition.events, type)
   );
 
   if (duplicateTypes.length > 0) {
@@ -458,20 +473,20 @@ export function createKernel<
     );
   }
 
-  const procedures = Object.entries(config.procedures).map(
+  const procedures = Object.entries(kernelDefinition.procedures).map(
     ([procedureName, definition]) => {
       const procedure = definition as RuntimeProcedureDefinition;
       const commandTypes = Object.keys(procedure.handle).filter((type) =>
-        Object.hasOwn(config.commands, type)
+        Object.hasOwn(kernelDefinition.commands, type)
       );
       const eventTypes = Object.keys(procedure.raise).filter((type) =>
-        Object.hasOwn(config.events, type)
+        Object.hasOwn(kernelDefinition.events, type)
       );
       const unknownCommandTypes = Object.keys(procedure.handle).filter((type) =>
-        !Object.hasOwn(config.commands, type)
+        !Object.hasOwn(kernelDefinition.commands, type)
       );
       const unknownEventTypes = Object.keys(procedure.raise).filter((type) =>
-        !Object.hasOwn(config.events, type)
+        !Object.hasOwn(kernelDefinition.events, type)
       );
 
       if (unknownCommandTypes.length > 0 || unknownEventTypes.length > 0) {
@@ -489,7 +504,7 @@ export function createKernel<
       }
 
       const commandType = commandTypes[0];
-      const commandDefinition = config.commands[commandType];
+      const commandDefinition = kernelDefinition.commands[commandType];
       const commandBindings = procedure.handle[commandType];
 
       validateBindings(
@@ -500,7 +515,7 @@ export function createKernel<
       );
 
       for (const eventType of eventTypes) {
-        const eventDefinition = config.events[eventType];
+        const eventDefinition = kernelDefinition.events[eventType];
         const eventBindings = procedure.raise[eventType];
 
         validateBindings(
@@ -528,38 +543,62 @@ export function createKernel<
     },
   );
 
+  const database = new DatabaseSync(options.config.database.path);
+
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS events (
+      id INTEGER PRIMARY KEY,
+      type TEXT NOT NULL,
+      payload JSON NOT NULL
+    )
+  `);
+
+  const insertEvent = database.prepare(
+    "INSERT INTO events (type, payload) VALUES (?, ?)",
+  );
+
   return {
     dispatch(
       type: string,
       unsafeInput: unknown,
     ): void {
-      for (const procedure of procedures) {
-        if (procedure.commandType === type) {
-          const command = materializeMessage(
-            config.schemas,
-            config.commands[type],
-            procedure.commandBindings,
-            "unsafe",
-            unsafeInput,
-          );
+      database.exec("BEGIN IMMEDIATE");
 
-          for (const eventType of procedure.eventTypes) {
-            const event = materializeMessage(
-              config.schemas,
-              config.events[eventType],
-              procedure.eventBindings[eventType],
-              "command",
-              command,
+      try {
+        for (const procedure of procedures) {
+          if (procedure.commandType === type) {
+            const command = materializeMessage(
+              kernelDefinition.schemas,
+              kernelDefinition.commands[type],
+              procedure.commandBindings,
+              "unsafe",
+              unsafeInput,
             );
 
-            console.info(eventType, event);
+            for (const eventType of procedure.eventTypes) {
+              const event = materializeMessage(
+                kernelDefinition.schemas,
+                kernelDefinition.events[eventType],
+                procedure.eventBindings[eventType],
+                "command",
+                command,
+              );
+
+              insertEvent.run(eventType, JSON.stringify(event));
+              console.info(eventType, event);
+            }
           }
         }
+
+        database.exec("COMMIT");
+      } catch (error) {
+        database.exec("ROLLBACK");
+        throw error;
       }
     },
   } as Kernel<
-    MergedSchemas<TDefinitions>,
-    MergedCommands<TDefinitions>,
-    MergedProcedures<TDefinitions>
+    MergedSchemas<TModules>,
+    MergedCommands<TModules>,
+    MergedProcedures<TModules>
   >;
 }
