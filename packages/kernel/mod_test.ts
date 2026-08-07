@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { createKernel } from "./mod.ts";
+import { createKernel, defineModule } from "./mod.ts";
 
 function createValidConfig() {
   return {
@@ -40,6 +40,87 @@ Deno.test("createKernel exposes the dispatch API", () => {
   const kernel = createKernel(createValidConfig());
 
   assert.equal(typeof kernel.dispatch, "function");
+});
+
+Deno.test("defineModule returns the module definition unchanged", () => {
+  const definition = createValidConfig();
+
+  assert.equal(defineModule(definition), definition);
+});
+
+Deno.test("createKernel merges multiple definitions", () => {
+  const config = createValidConfig();
+  const kernel = createKernel(
+    {
+      schemas: config.schemas,
+      commands: {},
+      events: {},
+      procedures: {},
+    },
+    {
+      schemas: {},
+      commands: config.commands,
+      events: config.events,
+      procedures: config.procedures,
+    },
+  );
+  const raised: unknown[][] = [];
+  const originalConsoleInfo = console.info;
+
+  console.info = (...args: unknown[]) => raised.push(args);
+
+  try {
+    kernel.dispatch("CreateTask", { text: "Write documentation" });
+  } finally {
+    console.info = originalConsoleInfo;
+  }
+
+  assert.deepEqual(raised, [
+    ["TaskCreated", { text: "Write documentation" }],
+  ]);
+});
+
+Deno.test("createKernel rejects conflicts between definitions", () => {
+  const config = createValidConfig();
+  const emptyDefinition = {
+    schemas: {},
+    commands: {},
+    events: {},
+    procedures: {},
+  } as const;
+
+  assert.throws(
+    () =>
+      createKernel(config, {
+        ...emptyDefinition,
+        schemas: config.schemas,
+      }),
+    { name: "TypeError", message: "Task conflict: Task" },
+  );
+  assert.throws(
+    () =>
+      createKernel(config, {
+        ...emptyDefinition,
+        commands: config.commands,
+      }),
+    { name: "TypeError", message: "Command conflict: CreateTask" },
+  );
+  assert.throws(
+    () =>
+      createKernel(config, {
+        ...emptyDefinition,
+        events: config.events,
+      }),
+    { name: "TypeError", message: "Event conflict: TaskCreated" },
+  );
+  assert.throws(
+    () =>
+      createKernel(config, {
+        ...emptyDefinition,
+        procedures: config.procedures,
+      }),
+    { name: "TypeError", message: "Procedure conflict: TaskCreation" },
+  );
 });
 
 Deno.test("createKernel rejects unknown schema references", () => {
