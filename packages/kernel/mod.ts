@@ -55,7 +55,8 @@ type CommandInputBindings<
   TSchemas extends SchemaRegistry,
   TCommand extends MessageDefinition<TSchemas>,
 > = {
-  readonly [K in keyof MessageValue<TSchemas, TCommand>]-?: `unsafe.${string}`;
+  readonly [K in Extract<keyof MessageValue<TSchemas, TCommand>, string>]-?:
+    `unsafe.${K}`;
 };
 
 type EventDataBindings<
